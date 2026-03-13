@@ -8,38 +8,46 @@ start:
     mov es, ax
     mov ss, ax
     mov sp, 0x7C00
+    mov [boot_drive], dl
     sti
 
-    ; Load Stage 2 from sector 2 into memory at 0x7E00
-    mov ah, 0x02        ; BIOS read sectors function
-    mov al, 4           ; Read 2 sectors
-    mov ch, 0           ; Cylinder 0
-    mov cl, 2           ; Start at sector 2 (sector 1 = us)
-    mov dh, 0           ; Head 0
-    mov bx, 0x7E00      ; Load into address 0x7E00
-    int 0x13            ; BIOS disk interrupt
-    jc disk_error       ; Jump if carry flag set (error)
+    mov si, msg_start
+    call print16
 
-    ; Jump to Stage 2
+    ; Load 32 sectors (stage2 + kernel) starting at sector 2 to 0x7E00
+    mov ah, 0x02
+    mov al, 32
+    mov ch, 0
+    mov cl, 2
+    mov dh, 0
+    mov dl, [boot_drive]
+    mov bx, 0x7E00
+    int 0x13
+    jc disk_error
+
+    mov si, msg_ok
+    call print16
     jmp 0x0000:0x7E00
 
 disk_error:
-    mov si, err_msg
-    call print_string
+    mov si, msg_err
+    call print16
     jmp $
 
-print_string:
+print16:
     lodsb
     or al, al
     jz .done
     mov ah, 0x0E
     int 0x10
-    jmp print_string
+    jmp print16
 .done:
     ret
 
-msg     db "AIOS Stage 1 OK", 0x0D, 0x0A, 0
-err_msg db "Disk read error!", 0x0D, 0x0A, 0
+boot_drive db 0
+msg_start  db "AIOS loading...", 0x0D, 0x0A, 0
+msg_ok     db "Stage 1 OK", 0x0D, 0x0A, 0
+msg_err    db "Disk error!", 0x0D, 0x0A, 0
 
 times 510 - ($ - $$) db 0
 dw 0xAA55

@@ -66,7 +66,7 @@ protected_mode_entry:
     mov gs, ax
     mov ebp, 0x90000
     mov esp, ebp
-    mov eax, 0x8200
+    mov eax, 0x10000
     jmp eax
 
 msg16 db "AIOS Stage 2 OK - switching to 32-bit...", 0x0D, 0x0A, 0

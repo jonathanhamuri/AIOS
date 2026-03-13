@@ -1,6 +1,33 @@
 [BITS 32]
-[ORG 0x8200]
 
+
+_start:
+    mov esp, 0x9FFFF
+    call serial_init
+    mov esi, banner
+    call serial_print
+    call vga_clear
+    mov esi, banner
+    mov bl, 0x0A
+    call vga_print
+    call pic_init
+    call idt_init
+    call pit_init
+    mov esi, msg_hw_ok
+    call serial_print
+    mov esi, msg_hw_ok
+    mov bl, 0x0F
+    call vga_print
+    sti
+.hang2:
+
+.hang:
+    jmp .hang
+
+times 8192 - ($ - $$) db 0
+
+
+; == DATA ==
 jmp _start
 
 banner    db "============================================", 0x0A
@@ -282,26 +309,3 @@ isr_generic:
     popa
     iret
 
-_start:
-    mov esp, 0x9FFFF
-    call serial_init
-    mov esi, banner
-    call serial_print
-    call vga_clear
-    mov esi, banner
-    mov bl, 0x0A
-    call vga_print
-    call pic_init
-    call idt_init
-    call pit_init
-    mov esi, msg_hw_ok
-    call serial_print
-    mov esi, msg_hw_ok
-    mov bl, 0x0F
-    call vga_print
-    sti
-
-kernel_main:
-    jmp $
-
-times 8192 - ($ - $$) db 0

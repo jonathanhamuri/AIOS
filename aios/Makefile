@@ -1,19 +1,28 @@
-all: aios.bin
+CC = gcc
+CFLAGS = -m32 -ffreestanding -fno-pie -fno-stack-protector -nostdlib -nostdinc -O0 -fno-asynchronous-unwind-tables -Ikernel
 
-boot/stage1.o: boot/boot.asm
-	nasm -f bin boot/boot.asm -o boot/stage1.o
+all: aios.iso
 
-boot/stage2.o: boot/stage2.asm
-	nasm -f bin boot/stage2.asm -o boot/stage2.o
+kernel/entry_mb.o: kernel/entry_mb.asm
+	nasm -f elf32 kernel/entry_mb.asm -o kernel/entry_mb.o
 
-kernel/entry.o: kernel/entry.asm
-	nasm -f bin kernel/entry.asm -o kernel/entry.o
+kernel/kernel_main.o: kernel/kernel_main.c
+	$(CC) $(CFLAGS) -c kernel/kernel_main.c -o kernel/kernel_main.o
 
-aios.bin: boot/stage1.o boot/stage2.o kernel/entry.o
-	cat boot/stage1.o boot/stage2.o kernel/entry.o > aios.bin
+kernel/mm/pmm.o: kernel/mm/pmm.c
+	$(CC) $(CFLAGS) -c kernel/mm/pmm.c -o kernel/mm/pmm.o
 
-run: aios.bin
-	qemu-system-x86_64 -drive format=raw,file=aios.bin,index=0,media=disk -display none -serial stdio -no-reboot
+kernel/mm/heap.o: kernel/mm/heap.c
+	$(CC) $(CFLAGS) -c kernel/mm/heap.c -o kernel/mm/heap.o
+
+iso/boot/kernel.elf: kernel/entry_mb.o kernel/kernel_main.o kernel/mm/pmm.o kernel/mm/heap.o
+	ld -m elf_i386 -T kernel/linker_mb.ld -o iso/boot/kernel.elf kernel/entry_mb.o kernel/kernel_main.o kernel/mm/pmm.o kernel/mm/heap.o
+
+aios.iso: iso/boot/kernel.elf
+	grub-mkrescue -o aios.iso iso/ 2>/dev/null
+
+run: aios.iso
+	qemu-system-x86_64 -cdrom aios.iso -display curses -no-reboot
 
 clean:
-	rm -f boot/stage1.o boot/stage2.o kernel/entry.o aios.bin
+	rm -f kernel/entry_mb.o kernel/kernel_main.o kernel/mm/pmm.o kernel/mm/heap.o iso/boot/kernel.elf aios.iso
