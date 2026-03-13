@@ -2,6 +2,28 @@
 #include "../mm/heap.h"
 
 static unsigned short* vga = (unsigned short*)VGA_BASE;
+
+#define SERIAL 0x3F8
+
+static void serial_init() {
+    unsigned char v;
+    __asm__ volatile ("outb %0, %1" :: "a"((unsigned char)0x00), "Nd"((unsigned short)(SERIAL+1)));
+    __asm__ volatile ("outb %0, %1" :: "a"((unsigned char)0x80), "Nd"((unsigned short)(SERIAL+3)));
+    __asm__ volatile ("outb %0, %1" :: "a"((unsigned char)0x01), "Nd"((unsigned short)(SERIAL+0)));
+    __asm__ volatile ("outb %0, %1" :: "a"((unsigned char)0x00), "Nd"((unsigned short)(SERIAL+1)));
+    __asm__ volatile ("outb %0, %1" :: "a"((unsigned char)0x03), "Nd"((unsigned short)(SERIAL+3)));
+    __asm__ volatile ("outb %0, %1" :: "a"((unsigned char)0xC7), "Nd"((unsigned short)(SERIAL+2)));
+}
+
+static void serial_putchar(char c) {
+    unsigned char status;
+    do {
+        __asm__ volatile ("inb %1, %0" : "=a"(status) : "Nd"((unsigned short)(SERIAL+5)));
+    } while (!(status & 0x20));
+    __asm__ volatile ("outb %0, %1" :: "a"((unsigned char)c), "Nd"((unsigned short)SERIAL));
+    if (c == '\n') serial_putchar('\r');
+}
+
 static terminal_t term;
 
 // Scroll buffer — stores last 100 lines for history
@@ -48,6 +70,7 @@ void terminal_clear() {
 }
 
 void terminal_init() {
+    serial_init();
     term.col     = 0;
     term.row     = 0;
     term.color   = MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK);
