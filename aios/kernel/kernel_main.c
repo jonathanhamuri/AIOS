@@ -5,6 +5,7 @@
 #include "syscall/syscall.h"
 #include "process/process.h"
 #include "compiler/compiler.h"
+#include "ai/ai_exec.h"
 
 extern void setup_idt();
 extern void idt_install_syscall();
@@ -21,11 +22,6 @@ static void serial_init() {
     outb(0x3F9,0x00); outb(0x3FB,0x80); outb(0x3F8,0x01);
     outb(0x3F9,0x00); outb(0x3FB,0x03); outb(0x3FA,0xC7);
 }
-static void serial_putchar(char c) {
-    while(!(inb(0x3FD)&0x20)); outb(0x3F8,c);
-    if(c=='\n'){while(!(inb(0x3FD)&0x20));outb(0x3F8,'\r');}
-}
-static void sp(const char* s){while(*s)serial_putchar(*s++);}
 
 static unsigned char sc2a[] = {
     0,0,'1','2','3','4','5','6','7','8','9','0','-','=',0,0,
@@ -33,6 +29,15 @@ static unsigned char sc2a[] = {
     'd','f','g','h','j','k','l',';',39,'`',0,'\\','z','x','c','v',
     'b','n','m',',','.','/',0,'*',0,' ',0
 };
+
+static unsigned char sc2a_shift[] = {
+    0,0,'!','@','#','$','%','^','&','*','(',')','_','+',0,0,
+    'Q','W','E','R','T','Y','U','I','O','P','{','}','\n',0,'A','S',
+    'D','F','G','H','J','K','L',':','"','~',0,'|','Z','X','C','V',
+    'B','N','M','<','>','?',0,'*',0,' ',0
+};
+
+static int shift_held = 0;
 
 void kernel_main() {
     serial_init();
@@ -43,21 +48,26 @@ void kernel_main() {
     idt_install_syscall();
     syscall_init();
     process_init();
-
-    // Init compiler with address of syscall_dispatch
     compiler_init((unsigned int)syscall_dispatch);
-    terminal_print_color("Compiler         : OK\n",
-                         MAKE_COLOR(COLOR_BCYAN, COLOR_BLACK));
+    terminal_print_color("Compiler         : OK\n", MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+    ai_exec_init();
 
     terminal_newline();
     terminal_render_prompt();
-    sp("AIOS ready\n");
 
     while(1) {
         if(!(inb(0x64)&0x01)) continue;
         unsigned char sc = inb(0x60);
-        if(sc&0x80) continue;
+
+        // Track shift key (scancode 0x2A left shift, 0x36 right shift)
+        if(sc == 0x2A || sc == 0x36){ shift_held=1; continue; }
+        if(sc == 0xAA || sc == 0xB6){ shift_held=0; continue; }
+
+        if(sc&0x80) continue;  // other key releases
         if(sc==0x0E){terminal_handle_key('\b');continue;}
-        if(sc<sizeof(sc2a)){char c=sc2a[sc];if(c)terminal_handle_key(c);}
+        if(sc<sizeof(sc2a)){
+            char c = shift_held ? sc2a_shift[sc] : sc2a[sc];
+            if(c) terminal_handle_key(c);
+        }
     }
 }

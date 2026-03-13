@@ -1,0 +1,184 @@
+#include "ai_exec.h"
+#include "intent.h"
+#include "../terminal/terminal.h"
+#include "../compiler/compiler.h"
+#include "../compiler/lexer.h"
+#include "../process/process.h"
+#include "../mm/heap.h"
+#include "../syscall/syscall.h"
+
+static int  seq(const char*a,const char*b){while(*a&&*b){if(*a!=*b)return 0;a++;b++;}return *a==*b;}
+static void scopy(char*d,const char*s,int m){int i=0;while(s[i]&&i<m-1){d[i]=s[i];i++;}d[i]=0;}
+static int  slen(const char*s){int n=0;while(*s++)n++;return n;}
+
+// Build AIOS source from intent and compile+run it
+static void compile_and_run(const char* src){
+    compile_result_t result;
+    int r = compiler_compile(src, &result);
+    if(r != 0){
+        terminal_print_color("[AI] Compile error: ", MAKE_COLOR(COLOR_BRED,COLOR_BLACK));
+        terminal_print(result.errmsg);
+        terminal_newline();
+        return;
+    }
+    process_exec_binary("ai_prog", result.code, result.size);
+    kfree(result.code);
+}
+
+// Simple expression evaluator for calc intent
+static int eval_expr(const char* s){
+    // Parse: NUM OP NUM
+    int a=0,b=0;
+    char op=0;
+    int i=0;
+    while(s[i]==' ')i++;
+    while(s[i]>='0'&&s[i]<='9'){a=a*10+(s[i]-'0');i++;}
+    while(s[i]==' ')i++;
+    op=s[i];i++;
+    while(s[i]==' ')i++;
+    while(s[i]>='0'&&s[i]<='9'){b=b*10+(s[i]-'0');i++;}
+    switch(op){
+        case '+': return a+b;
+        case '=': return a+b;  // = is + without shift
+        case '-': return a-b;
+        case '*': return a*b;
+        case 'x': return a*b;  // x as multiply
+        case '/': return b?a/b:0;
+        default:  return 0;
+    }
+}
+
+void ai_exec_init(){
+    terminal_print_color("AI language      : OK\n",
+                         MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+}
+
+void ai_exec(const char* input){
+    intent_t intent;
+    intent_parse(input, &intent);
+
+    // Show intent debug in dim color
+    terminal_print_color("[AI:", MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
+    terminal_print_color(intent_name(intent.type), MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
+    terminal_print_color("] ", MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
+
+    switch(intent.type){
+
+        case INTENT_GREET:
+            if(seq(intent.lang,"fr")){
+                terminal_print_color("Bonjour! AIOS ecoute.\n",
+                                     MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+                terminal_print_color("Je comprends le francais et l'anglais.\n",
+                                     MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+            } else {
+                terminal_print_color("Hello! AIOS is listening.\n",
+                                     MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+                terminal_print_color("I understand English and French.\n",
+                                     MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+            }
+            break;
+
+        case INTENT_PRINT: {
+            // Compile: print "arg1";
+            char src[256];
+            char* p = src;
+            // Build source string manually
+            const char* prefix = "print \"";
+            while(*prefix)*p++=*prefix++;
+            const char* a = intent.arg1;
+            while(*a)*p++=*a++;
+            *p++='"'; *p++=';'; *p++=0;
+            compile_and_run(src);
+            terminal_newline();
+            break;
+        }
+
+        case INTENT_CLEAR:
+            terminal_clear();
+            terminal_render_prompt();
+            return;
+
+        case INTENT_MEMORY:
+            syscall_dispatch(SYS_MEMINFO,0,0,0);
+            break;
+
+        case INTENT_HELP:
+            if(seq(intent.lang,"fr")){
+                terminal_print_color("Commandes AIOS (langage naturel):\n",
+                                     MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+                terminal_print("  affiche <texte>   - afficher du texte\n");
+                terminal_print("  memoire           - etat de la memoire\n");
+                terminal_print("  efface            - effacer l'ecran\n");
+                terminal_print("  calcule X + Y     - calculer\n");
+                terminal_print("  processus         - liste des processus\n");
+                terminal_print("  compile <code>    - compiler du code AIOS\n");
+            } else {
+                terminal_print_color("AIOS natural language commands:\n",
+                                     MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+                terminal_print("  print/show <text> - display text\n");
+                terminal_print("  memory/ram        - memory status\n");
+                terminal_print("  clear             - clear screen\n");
+                terminal_print("  calculate X + Y   - compute expression\n");
+                terminal_print("  processes/ps      - list processes\n");
+                terminal_print("  compile <code>    - compile AIOS source\n");
+                terminal_print("  about/what is aios- about this OS\n");
+            }
+            break;
+
+        case INTENT_ABOUT:
+            terminal_print_color("AIOS - Artificial Intelligence Operating System\n",
+                                 MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+            terminal_print("Built from scratch: x86 asm -> C kernel -> compiler -> AI\n");
+            terminal_print("Every input routes through the AI intent engine.\n");
+            terminal_print("Phase 4 active: natural language interface running.\n");
+            terminal_print("Next: Phase 5 - AIOS rewrites itself in its own language.\n");
+            break;
+
+        case INTENT_CALC: {
+            int result = eval_expr(intent.arg1);
+            terminal_print_color("= ", MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+            terminal_print_int(result);
+            terminal_newline();
+            break;
+        }
+
+        case INTENT_LIST_PROC:
+            syscall_dispatch(SYS_PRINT,(unsigned int)"Processes:\n",
+                             MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK),0);
+            process_list();
+            break;
+
+        case INTENT_COMPILE: {
+            compile_result_t result;
+            int r = compiler_compile(intent.arg1, &result);
+            if(r==0){
+                terminal_print_color("Compiled OK - running...\n",
+                                     MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+                process_exec_binary("ai_prog", result.code, result.size);
+                kfree(result.code);
+            } else {
+                terminal_print_color("Error: ", MAKE_COLOR(COLOR_BRED,COLOR_BLACK));
+                terminal_print(result.errmsg);
+                terminal_newline();
+            }
+            break;
+        }
+
+        case INTENT_AI_QUERY:
+            terminal_print_color("I understand the question.\n",
+                                 MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+            terminal_print("Phase 5 will add full knowledge reasoning.\n");
+            terminal_print("For now: try 'help' to see what I can do.\n");
+            break;
+
+        case INTENT_UNKNOWN:
+        default:
+            terminal_print_color("I don't understand: '", MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+            terminal_print(input);
+            terminal_print_color("'\n", MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+            terminal_print("Try: hello, print <text>, memory, calculate 5+3\n");
+            terminal_print("Or type in French: bonjour, affiche <texte>\n");
+            break;
+    }
+    terminal_newline();
+}

@@ -12,7 +12,9 @@ OBJS = kernel/entry_mb.o \
        kernel/process/process.o \
        kernel/compiler/lexer.o \
        kernel/compiler/codegen.o \
-       kernel/compiler/compiler.o
+       kernel/compiler/compiler.o \
+       kernel/ai/intent.o \
+       kernel/ai/ai_exec.o
 
 all: aios.iso
 
