@@ -19,7 +19,16 @@ extern syscall_isr
 IDT_BASE equ 0x20000
 
 _start:
-    mov esp, 0x9FFFF
+    mov esp, 0x1FFFF0
+    lgdt [our_gdt_desc]
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    jmp 0x08:.flush_cs
+.flush_cs:
     call kernel_main
 .hang:
     jmp .hang
@@ -64,8 +73,90 @@ idt_install_syscall:
     mov word [edi+6], ax
     ret
 
+
+our_gdt:
+    dq 0x0000000000000000   ; null
+    dq 0x00CF9A000000FFFF   ; code: base=0, limit=4GB, ring0, exec/read
+    dq 0x00CF92000000FFFF   ; data: base=0, limit=4GB, ring0, read/write
+our_gdt_desc:
+    dw 23
+    dd our_gdt
+
 isr_stub:
+    push eax
+    mov al, 0x20
+    out 0x20, al
+    pop eax
     iret
 
 idt_limit     dw 0
 idt_base_addr dd 0
+global idt_install_timer
+global pit_init
+
+idt_install_timer:
+    ; Mask all IRQs first to prevent spurious interrupts during setup
+    mov al, 0xFF
+    out 0x21, al
+    out 0xA1, al
+    push eax
+    mov al, 0x54
+    out 0x3F8, al
+    pop eax
+    ; Install timer_irq_handler at IDT[0x20] (IRQ0 = PIC remapped to 0x20)
+    mov edi, IDT_BASE + (0x20 * 8)
+    mov eax, timer_irq_handler
+    mov word [edi],   ax
+    mov word [edi+2], 0x08
+    mov byte [edi+4], 0
+    mov byte [edi+5], 10001110b
+    shr eax, 16
+    mov word [edi+6], ax
+
+    ; Remap PIC: IRQ0-7 -> INT 0x20-0x27
+    mov al, 0x11
+    out 0x20, al
+    out 0xA0, al
+    mov al, 0x20
+    out 0x21, al
+    mov al, 0x28
+    out 0xA1, al
+    mov al, 0x04
+    out 0x21, al
+    mov al, 0x02
+    out 0xA1, al
+    mov al, 0x01
+    out 0x21, al
+    out 0xA1, al
+
+    ; Unmask IRQ0 only
+    mov al, 0xFE
+    out 0x21, al
+    mov al, 0xFF
+    out 0xA1, al
+
+    ; Enable interrupts
+    ret
+
+pit_init:
+    ; Set PIT channel 0, rate = 1193180 / 100 = 11931 (~100Hz)
+    mov al, 0x36
+    out 0x43, al
+    mov ax, 11931
+    out 0x40, al
+    mov al, ah
+    out 0x40, al
+    ret
+
+timer_irq_handler:
+    push eax
+    add dword [timer_ticks_bss], 1
+    ; Send EOI to PIC
+    mov al, 0x20
+    out 0x20, al
+    pop eax
+    iret
+
+section .bss
+global timer_ticks_bss
+timer_ticks_bss resd 1

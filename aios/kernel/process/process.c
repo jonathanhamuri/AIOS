@@ -1,128 +1,124 @@
 #include "process.h"
 #include "../mm/heap.h"
-#include "../mm/pmm.h"
 #include "../terminal/terminal.h"
 
-static process_t proc_table[MAX_PROCESSES];
-static unsigned int next_pid = 1;
+process_t proc_table[MAX_PROCESSES];
+int current_pid = -1;
+volatile unsigned int timer_ticks = 0;
 
-static void str_copy(unsigned char* dst, const char* src, int max) {
-    int i = 0;
-    while (src[i] && i < max-1) { dst[i] = src[i]; i++; }
-    dst[i] = 0;
-}
-
-static int str_len(const char* s) {
-    int n = 0; while (*s++) n++; return n;
+static void scopy(char* d, const char* s, int m) {
+    int i=0; while(s[i]&&i<m-1){d[i]=s[i];i++;} d[i]=0;
 }
 
 void process_init() {
-    for (int i = 0; i < MAX_PROCESSES; i++)
-        proc_table[i].state = PROC_EMPTY;
-    terminal_print_color("Process manager  : OK\n",
-                         MAKE_COLOR(COLOR_BCYAN, COLOR_BLACK));
+    for(int i=0;i<MAX_PROCESSES;i++){
+        proc_table[i].state=PROC_EMPTY;
+        proc_table[i].pid=0;
+    }
+    terminal_print_color("Process manager  : OK\n",MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
 }
 
 int process_spawn(const char* name, proc_entry_t entry) {
-    // Find empty slot
-    for (int i = 0; i < MAX_PROCESSES; i++) {
-        if (proc_table[i].state == PROC_EMPTY) {
-            proc_table[i].pid   = next_pid++;
-            proc_table[i].state = PROC_READY;
-            proc_table[i].entry = (unsigned int)entry;
-
-            // Allocate stack
-            void* stack = kmalloc(STACK_SIZE);
-            proc_table[i].stack_top = (unsigned int)stack + STACK_SIZE;
-            str_copy(proc_table[i].name, name, 32);
-
-            terminal_print_color("[PROC] Spawned: ", MAKE_COLOR(COLOR_BYELLOW, COLOR_BLACK));
-            terminal_print((char*)proc_table[i].name);
-            terminal_print_color(" PID=", MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK));
-            terminal_print_int(proc_table[i].pid);
-            terminal_newline();
-
-            // Run it directly (cooperative, no preemption yet)
-            proc_table[i].state = PROC_RUNNING;
-            entry();
-            proc_table[i].state = PROC_DEAD;
-
-            return proc_table[i].pid;
+    for(int i=0;i<MAX_PROCESSES;i++){
+        if(proc_table[i].state==PROC_EMPTY){
+            proc_table[i].pid=i+1;
+            proc_table[i].state=PROC_READY;
+            proc_table[i].entry=(unsigned int)entry;
+            scopy((char*)proc_table[i].name,name,32);
+            unsigned char* stack=(unsigned char*)kmalloc(STACK_SIZE);
+            proc_table[i].stack_top=(unsigned int)(stack+STACK_SIZE);
+            unsigned int* sp=(unsigned int*)(proc_table[i].stack_top);
+            sp--; *sp=0;
+            sp--; *sp=(unsigned int)entry;
+            sp--; *sp=0; sp--; *sp=0; sp--; *sp=0; sp--; *sp=0;
+            proc_table[i].esp=(unsigned int)sp;
+            proc_table[i].eip=(unsigned int)entry;
+            return i+1;
         }
     }
     return -1;
 }
 
 void process_exit(unsigned int pid) {
-    for (int i = 0; i < MAX_PROCESSES; i++) {
-        if (proc_table[i].pid == pid) {
-            proc_table[i].state = PROC_DEAD;
-            terminal_print_color("[PROC] Exited PID=",
-                                 MAKE_COLOR(COLOR_BYELLOW, COLOR_BLACK));
-            terminal_print_int(pid);
-            terminal_newline();
-            return;
-        }
-    }
+    for(int i=0;i<MAX_PROCESSES;i++)
+        if(proc_table[i].pid==pid) proc_table[i].state=PROC_DEAD;
 }
 
 void process_list() {
-    terminal_print_color("PID  STATE    NAME\n",
-                         MAKE_COLOR(COLOR_BYELLOW, COLOR_BLACK));
-    terminal_print_color("---  -------  ----\n",
-                         MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK));
-    int found = 0;
-    for (int i = 0; i < MAX_PROCESSES; i++) {
-        if (proc_table[i].state != PROC_EMPTY) {
+    terminal_print_color("PID  STATE    NAME\n",MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+    for(int i=0;i<MAX_PROCESSES;i++){
+        if(proc_table[i].state!=PROC_EMPTY){
             terminal_print_int(proc_table[i].pid);
             terminal_print("    ");
-            switch(proc_table[i].state) {
-                case PROC_READY:   terminal_print_color("READY   ", MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK)); break;
-                case PROC_RUNNING: terminal_print_color("RUNNING ", MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK)); break;
-                case PROC_DEAD:    terminal_print_color("DEAD    ", MAKE_COLOR(COLOR_BRED,COLOR_BLACK)); break;
-            }
+            const char* st="?      ";
+            if(proc_table[i].state==PROC_READY)   st="READY  ";
+            if(proc_table[i].state==PROC_RUNNING)  st="RUNNING";
+            if(proc_table[i].state==PROC_DEAD)     st="DEAD   ";
+            terminal_print(st);
             terminal_print("  ");
-            terminal_print((char*)proc_table[i].name);
+            terminal_print((const char*)proc_table[i].name);
             terminal_newline();
-            found++;
         }
     }
-    if (!found) terminal_print("No processes\n");
 }
 
-// Load and execute a flat binary blob in memory
 int process_exec_binary(const char* name, void* binary, unsigned int size) {
-    // Allocate memory for the binary
-    void* mem = kmalloc(size + STACK_SIZE);
-    if (!mem) return -1;
+    void* mem=kmalloc(size);
+    if(!mem) return -1;
+    unsigned char* src=(unsigned char*)binary;
+    unsigned char* dst=(unsigned char*)mem;
+    for(unsigned int i=0;i<size;i++) dst[i]=src[i];
+    terminal_print_color("[PROC] exec: ",MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+    terminal_print(name);
+    terminal_print_color(" @ 0x",MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
+    terminal_print_hex((unsigned int)mem);
+    terminal_newline();
+    typedef void (*fn_t)();
+    ((fn_t)mem)();
+    kfree(mem);
+    return 0;
+}
 
-    // Copy binary into allocated memory
-    unsigned char* dst = (unsigned char*)mem;
-    unsigned char* src = (unsigned char*)binary;
-    for (unsigned int i = 0; i < size; i++) dst[i] = src[i];
-
-    // Find empty process slot
-    for (int i = 0; i < MAX_PROCESSES; i++) {
-        if (proc_table[i].state == PROC_EMPTY) {
-            proc_table[i].pid       = next_pid++;
-            proc_table[i].state     = PROC_RUNNING;
-            proc_table[i].entry     = (unsigned int)mem;
-            proc_table[i].stack_top = (unsigned int)mem + size + STACK_SIZE;
-            str_copy(proc_table[i].name, name, 32);
-
-            terminal_print_color("[PROC] exec: ", MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
-            terminal_print((char*)proc_table[i].name);
-            terminal_print_color(" @ ", MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
-            terminal_print_hex((unsigned int)mem);
-            terminal_newline();
-
-            // Jump to binary entry point
-            proc_entry_t entry = (proc_entry_t)mem;
-            entry();
-
-            proc_table[i].state = PROC_DEAD;
-            return proc_table[i].pid;
+void scheduler_tick() {
+    // Find and run next ready process
+    for(int i=0;i<MAX_PROCESSES;i++){
+        if(proc_table[i].state==PROC_READY){
+            proc_table[i].state=PROC_RUNNING;
+            current_pid=i;
+            typedef void (*fn_t)();
+            fn_t fn=(fn_t)proc_table[i].entry;
+            if(fn && (unsigned int)fn > 0x100000) fn();
+            proc_table[i].state=PROC_DEAD;
+            current_pid=-1;
+            return;
         }
     }
-    return -1;
+    // original:
+
+    int next=-1;
+    for(int i=0;i<MAX_PROCESSES;i++){
+        int idx=(current_pid+1+i)%MAX_PROCESSES;
+        if(proc_table[idx].state==PROC_READY){next=idx;break;}
+    }
+    if(next==-1) return;
+    if(current_pid>=0&&proc_table[current_pid].state==PROC_RUNNING)
+        proc_table[current_pid].state=PROC_READY;
+    current_pid=next;
+    proc_table[current_pid].state=PROC_RUNNING;
+
+    // Execute the process entry point (cooperative for now)
+    terminal_print_color("[SCHED] entry=0x",MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+    terminal_print_hex(proc_table[current_pid].entry);
+    terminal_newline();
+    typedef void (*fn_t)();
+    fn_t fn = (fn_t)proc_table[current_pid].entry;
+    if(fn) {
+        fn();
+        // Mark done after one execution
+        proc_table[current_pid].state=PROC_DEAD;
+        current_pid=-1;
+    }
 }
+
+int scheduler_current_pid() { return current_pid; }
+void scheduler_yield() { scheduler_tick(); }

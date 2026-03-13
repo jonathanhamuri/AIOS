@@ -1,4 +1,5 @@
 #include "self_extend.h"
+#include "../../process/process.h"
 #include "kb.h"
 #include "disk/kbfs.h"
 #include "disk/ata.h"
@@ -110,8 +111,30 @@ void self_extend_init() {
 }
 
 int self_extend_parse(const char* input) {
-    if(sstart(input,"learn ")){
-        return parse_learn(input+6);
+    if(sstart(input,"spawn ")||sstart(input,"run background")){
+        const char* task_name = input+6;
+        int pid = process_spawn(task_name, (proc_entry_t)0);
+        if(pid>0){
+            terminal_print_color("[AIOS] Spawned PID ",MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+            terminal_print_int(pid);
+            terminal_newline();
+        }
+        return 1;
+    }
+    if(sstart(input,"ps")||sstart(input,"processes")||sstart(input,"list proc")){
+        process_list();
+        return 1;
+    }
+    if(sstart(input,"ticks")||sstart(input,"timer")){
+        extern unsigned int timer_ticks_bss;
+        terminal_print_color("[TIMER] ticks=",MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+        terminal_print_int(timer_ticks_bss);
+        terminal_newline();
+        return 1;
+    }
+    if(sstart(input,"ps")||sstart(input,"processes")||sstart(input,"list proc")){
+        process_list();
+        return 1;
     }
     if(sstart(input,"save")||sstart(input,"sauvegarde")){
         kbfs_save();

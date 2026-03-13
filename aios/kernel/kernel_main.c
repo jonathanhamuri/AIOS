@@ -13,6 +13,8 @@
 
 extern void setup_idt();
 extern void idt_install_syscall();
+extern void idt_install_timer();
+extern void pit_init(int hz);
 
 static void outb(unsigned short port, unsigned char val) {
     __asm__ volatile ("outb %0, %1" :: "a"(val), "Nd"(port));
@@ -42,12 +44,14 @@ static unsigned char sc2a_shift[] = {
 static int shift_held = 0;
 
 void kernel_main() {
-    serial_init();
     pmm_init();
     heap_init();
     terminal_init();
     setup_idt();
+    serial_init();
     idt_install_syscall();
+    idt_install_timer();
+    pit_init(100);
     syscall_init();
     process_init();
     compiler_init((unsigned int)syscall_dispatch);
@@ -61,9 +65,19 @@ void kernel_main() {
 
     terminal_newline();
     terminal_render_prompt();
+    __asm__ volatile("sti");
 
     while(1) {
-        if(!(inb(0x64)&0x01)) continue;
+        if(!(inb(0x64)&0x01)){
+        extern unsigned int timer_ticks_bss;
+        static unsigned int last_tick = 0;
+        if(timer_ticks_bss != last_tick){
+            last_tick = timer_ticks_bss;
+            extern void scheduler_tick();
+            scheduler_tick();
+        }
+        continue;
+    }
         unsigned char sc = inb(0x60);
         if(sc==0x2A||sc==0x36){shift_held=1;continue;}
         if(sc==0xAA||sc==0xB6){shift_held=0;continue;}
