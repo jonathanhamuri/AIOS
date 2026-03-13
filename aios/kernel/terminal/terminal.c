@@ -63,6 +63,12 @@ void terminal_scroll() {
 }
 
 void terminal_clear() {
+    // Reset VGA hardware cursor to 0
+    unsigned short pos = 0;
+    __asm__ volatile ("outb %0,%1"::"a"((unsigned char)0x0F),"Nd"((unsigned short)0x3D4));
+    __asm__ volatile ("outb %0,%1"::"a"((unsigned char)(pos&0xFF)),"Nd"((unsigned short)0x3D5));
+    __asm__ volatile ("outb %0,%1"::"a"((unsigned char)0x0E),"Nd"((unsigned short)0x3D4));
+    __asm__ volatile ("outb %0,%1"::"a"((unsigned char)(pos>>8)),"Nd"((unsigned short)0x3D5));
     for (int r = 0; r < VGA_ROWS; r++)
         vga_clear_row(r, MAKE_COLOR(COLOR_WHITE, COLOR_BLACK));
     term.row = 0;
@@ -71,26 +77,30 @@ void terminal_clear() {
 
 void terminal_init() {
     serial_init();
-    term.col     = 0;
-    term.row     = 0;
+    // Hard wipe entire VGA buffer
+    unsigned short* v = (unsigned short*)0xB8000;
+    for (int i = 0; i < 80*25; i++) v[i] = 0x0720;
+    term.col = 0;
+    term.row = 0;
+    term.color = MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK);
+    term.cmd_len = 0;
+    term.ai_mode = 0;
     term.color   = MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK);
     term.cmd_len = 0;
     term.ai_mode = 0;
-    terminal_clear();
 
     // Banner
     terminal_set_color(MAKE_COLOR(COLOR_BGREEN, COLOR_BLACK));
-    terminal_print("============================================\n");
-    terminal_print("           AIOS - AI Operating System      \n");
-    terminal_print("   Every command is processed by the AI    \n");
-    terminal_print("============================================\n");
+    terminal_print("=====================================\n");
+    terminal_print("   AIOS  -  AI Operating System      \n");
+    terminal_print("   All commands processed by AI      \n");
+    terminal_print("=====================================\n");
     terminal_set_color(MAKE_COLOR(COLOR_BCYAN, COLOR_BLACK));
     terminal_print("Memory manager  : OK\n");
     terminal_print("Terminal driver : OK\n");
     terminal_print("AI interface    : READY\n");
     terminal_set_color(MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK));
     terminal_print("\n");
-    terminal_render_prompt();
 }
 
 void terminal_set_color(unsigned char color) {

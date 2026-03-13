@@ -37,19 +37,14 @@ void kernel_main() {
     serial_init();
     pmm_init();
     heap_init();
-    terminal_init();
-    syscall_init();
+    terminal_init();      // prints banner + Memory/Terminal/AI lines
     setup_idt();
     idt_install_syscall();
-    process_init();
-
-    sp("AIOS kernel ready\n");
-
-    syscall_dispatch(SYS_PRINT,(unsigned int)"Syscall OK\n",
-                     MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK),0);
-    syscall_dispatch(SYS_AI,(unsigned int)"hello",0,0);
-
+    syscall_init();       // prints syscall line
+    process_init();       // prints process line
+    terminal_newline();
     terminal_render_prompt();
+    sp("AIOS ready\n");
 
     while (1) {
         if (!(inb(0x64)&0x01)) continue;
