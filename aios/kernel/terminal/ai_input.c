@@ -3,6 +3,7 @@
 #include "../mm/pmm.h"
 #include "../mm/heap.h"
 #include "../process/process.h"
+#include "../compiler/compiler.h"
 
 // ── string helpers ────────────────────────────────────────────────────
 static int str_eq(const char* a, const char* b) {
@@ -71,6 +72,37 @@ static void cmd_about(const char* args) {
 }
 
 
+
+static void cmd_compile(const char* src) {
+    if (!src || !src[0]) {
+        terminal_print_color("Usage: compile <source>\n", MAKE_COLOR(COLOR_BYELLOW, COLOR_BLACK));
+        terminal_print("Example: compile print \"Hello from compiled code!\";\n");
+        return;
+    }
+    terminal_print_color("[COMPILER] Compiling...\n", MAKE_COLOR(COLOR_BCYAN, COLOR_BLACK));
+
+    compile_result_t result;
+    int r = compiler_compile(src, &result);
+
+    if (r != COMPILE_OK) {
+        terminal_print_color("[COMPILER] Error: ", MAKE_COLOR(COLOR_BRED, COLOR_BLACK));
+        terminal_print(result.errmsg);
+        terminal_newline();
+        return;
+    }
+
+    terminal_print_color("[COMPILER] OK - ", MAKE_COLOR(COLOR_BGREEN, COLOR_BLACK));
+    terminal_print_int(result.size);
+    terminal_print_color(" bytes generated\n", MAKE_COLOR(COLOR_BGREEN, COLOR_BLACK));
+    terminal_print_color("[COMPILER] Running...\n", MAKE_COLOR(COLOR_BYELLOW, COLOR_BLACK));
+
+    // Execute compiled binary
+    process_exec_binary("compiled", result.code, result.size);
+    kfree(result.code);
+
+    terminal_print_color("[COMPILER] Done\n", MAKE_COLOR(COLOR_BGREEN, COLOR_BLACK));
+}
+
 static void cmd_ps(const char* args) {
     process_list();
 }
@@ -125,6 +157,8 @@ void ai_process_input(const char* input) {
         cmd_mem(0);
     } else if (str_eq(input, "about")) {
         cmd_about(0);
+    } else if (str_starts(input, "compile ")) {
+        cmd_compile(input + 8);
     } else if (str_eq(input, "ps")) {
         cmd_ps(0);
     } else if (str_starts(input, "run ")) {

@@ -9,7 +9,10 @@ OBJS = kernel/entry_mb.o \
        kernel/terminal/ai_input.o \
        kernel/syscall/syscall.o \
        kernel/syscall/syscall_asm.o \
-       kernel/process/process.o
+       kernel/process/process.o \
+       kernel/compiler/lexer.o \
+       kernel/compiler/codegen.o \
+       kernel/compiler/compiler.o
 
 all: aios.iso
 

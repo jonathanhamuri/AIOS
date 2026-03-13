@@ -4,6 +4,7 @@
 #include "terminal/ai_input.h"
 #include "syscall/syscall.h"
 #include "process/process.h"
+#include "compiler/compiler.h"
 
 extern void setup_idt();
 extern void idt_install_syscall();
@@ -21,8 +22,8 @@ static void serial_init() {
     outb(0x3F9,0x00); outb(0x3FB,0x03); outb(0x3FA,0xC7);
 }
 static void serial_putchar(char c) {
-    while (!(inb(0x3FD)&0x20)); outb(0x3F8,c);
-    if (c=='\n'){while(!(inb(0x3FD)&0x20));outb(0x3F8,'\r');}
+    while(!(inb(0x3FD)&0x20)); outb(0x3F8,c);
+    if(c=='\n'){while(!(inb(0x3FD)&0x20));outb(0x3F8,'\r');}
 }
 static void sp(const char* s){while(*s)serial_putchar(*s++);}
 
@@ -37,20 +38,26 @@ void kernel_main() {
     serial_init();
     pmm_init();
     heap_init();
-    terminal_init();      // prints banner + Memory/Terminal/AI lines
+    terminal_init();
     setup_idt();
     idt_install_syscall();
-    syscall_init();       // prints syscall line
-    process_init();       // prints process line
+    syscall_init();
+    process_init();
+
+    // Init compiler with address of syscall_dispatch
+    compiler_init((unsigned int)syscall_dispatch);
+    terminal_print_color("Compiler         : OK\n",
+                         MAKE_COLOR(COLOR_BCYAN, COLOR_BLACK));
+
     terminal_newline();
     terminal_render_prompt();
     sp("AIOS ready\n");
 
-    while (1) {
-        if (!(inb(0x64)&0x01)) continue;
+    while(1) {
+        if(!(inb(0x64)&0x01)) continue;
         unsigned char sc = inb(0x60);
-        if (sc&0x80) continue;
-        if (sc==0x0E){terminal_handle_key('\b');continue;}
-        if (sc<sizeof(sc2a)){char c=sc2a[sc];if(c)terminal_handle_key(c);}
+        if(sc&0x80) continue;
+        if(sc==0x0E){terminal_handle_key('\b');continue;}
+        if(sc<sizeof(sc2a)){char c=sc2a[sc];if(c)terminal_handle_key(c);}
     }
 }
