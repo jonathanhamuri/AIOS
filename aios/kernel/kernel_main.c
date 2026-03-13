@@ -3,6 +3,7 @@
 #include "terminal/terminal.h"
 #include "terminal/ai_input.h"
 #include "syscall/syscall.h"
+#include "process/process.h"
 
 extern void setup_idt();
 extern void idt_install_syscall();
@@ -33,25 +34,22 @@ static unsigned char sc2a[] = {
 };
 
 void kernel_main() {
-    serial_init();         sp("1: serial OK\n");
-    pmm_init();            sp("2: pmm OK\n");
-    heap_init();           sp("3: heap OK\n");
-    terminal_init();       sp("4: terminal OK\n");
-    syscall_init();        sp("5: syscall_init OK\n");
-    setup_idt();           sp("6: setup_idt OK\n");
-    idt_install_syscall(); sp("7: idt_install OK\n");
+    serial_init();
+    pmm_init();
+    heap_init();
+    terminal_init();
+    syscall_init();
+    setup_idt();
+    idt_install_syscall();
+    process_init();
 
-    // Call syscall_dispatch DIRECTLY - no int 0x80 yet
-    sp("8: testing direct dispatch\n");
-    syscall_dispatch(SYS_PRINT,(unsigned int)"DIRECT DISPATCH OK\n",
+    sp("AIOS kernel ready\n");
+
+    syscall_dispatch(SYS_PRINT,(unsigned int)"Syscall OK\n",
                      MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK),0);
-    sp("9: direct dispatch OK\n");
-
     syscall_dispatch(SYS_AI,(unsigned int)"hello",0,0);
-    sp("10: AI dispatch OK\n");
 
     terminal_render_prompt();
-    sp("11: READY\n");
 
     while (1) {
         if (!(inb(0x64)&0x01)) continue;

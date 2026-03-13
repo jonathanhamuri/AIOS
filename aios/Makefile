@@ -8,7 +8,8 @@ OBJS = kernel/entry_mb.o \
        kernel/terminal/terminal.o \
        kernel/terminal/ai_input.o \
        kernel/syscall/syscall.o \
-       kernel/syscall/syscall_asm.o
+       kernel/syscall/syscall_asm.o \
+       kernel/process/process.o
 
 all: aios.iso
 
@@ -26,9 +27,6 @@ iso/boot/kernel.elf: $(OBJS)
 
 aios.iso: iso/boot/kernel.elf
 	grub-mkrescue -o aios.iso iso/ 2>/dev/null
-
-run: aios.iso
-	qemu-system-x86_64 -cdrom aios.iso -display curses -no-reboot
 
 clean:
 	rm -f $(OBJS) iso/boot/kernel.elf aios.iso

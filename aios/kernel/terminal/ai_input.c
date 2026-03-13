@@ -2,6 +2,7 @@
 #include "terminal.h"
 #include "../mm/pmm.h"
 #include "../mm/heap.h"
+#include "../process/process.h"
 
 // ── string helpers ────────────────────────────────────────────────────
 static int str_eq(const char* a, const char* b) {
@@ -69,6 +70,17 @@ static void cmd_about(const char* args) {
     terminal_set_color(MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK));
 }
 
+
+static void cmd_ps(const char* args) {
+    process_list();
+}
+
+static void cmd_run(const char* args) {
+    terminal_print_color("[AI] run command - process loader ready\n",
+                         MAKE_COLOR(COLOR_BCYAN, COLOR_BLACK));
+    terminal_print("Usage: compiler will generate binaries to run here\n");
+}
+
 // ── AI natural language stub ──────────────────────────────────────────
 // This is where Phase 4 plugs in — for now we pattern-match keywords
 static void ai_natural_language(const char* input) {
@@ -113,6 +125,10 @@ void ai_process_input(const char* input) {
         cmd_mem(0);
     } else if (str_eq(input, "about")) {
         cmd_about(0);
+    } else if (str_eq(input, "ps")) {
+        cmd_ps(0);
+    } else if (str_starts(input, "run ")) {
+        cmd_run(input + 4);
     } else if (str_starts(input, "echo ")) {
         cmd_echo(input + 5);
     } else {
