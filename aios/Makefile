@@ -14,7 +14,11 @@ OBJS = kernel/entry_mb.o \
        kernel/compiler/codegen.o \
        kernel/compiler/compiler.o \
        kernel/ai/intent.o \
-       kernel/ai/ai_exec.o
+       kernel/ai/ai_exec.o \
+       kernel/ai/knowledge/kb.o \
+       kernel/ai/knowledge/self_extend.o \
+       kernel/disk/ata.o \
+       kernel/disk/kbfs.o
 
 all: aios.iso
 

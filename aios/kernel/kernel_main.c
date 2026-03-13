@@ -6,6 +6,10 @@
 #include "process/process.h"
 #include "compiler/compiler.h"
 #include "ai/ai_exec.h"
+#include "ai/knowledge/kb.h"
+#include "ai/knowledge/self_extend.h"
+#include "disk/ata.h"
+#include "disk/kbfs.h"
 
 extern void setup_idt();
 extern void idt_install_syscall();
@@ -29,14 +33,12 @@ static unsigned char sc2a[] = {
     'd','f','g','h','j','k','l',';',39,'`',0,'\\','z','x','c','v',
     'b','n','m',',','.','/',0,'*',0,' ',0
 };
-
 static unsigned char sc2a_shift[] = {
     0,0,'!','@','#','$','%','^','&','*','(',')','_','+',0,0,
     'Q','W','E','R','T','Y','U','I','O','P','{','}','\n',0,'A','S',
     'D','F','G','H','J','K','L',':','"','~',0,'|','Z','X','C','V',
     'B','N','M','<','>','?',0,'*',0,' ',0
 };
-
 static int shift_held = 0;
 
 void kernel_main() {
@@ -49,8 +51,13 @@ void kernel_main() {
     syscall_init();
     process_init();
     compiler_init((unsigned int)syscall_dispatch);
-    terminal_print_color("Compiler         : OK\n", MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+    terminal_print_color("Compiler         : OK\n",MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
     ai_exec_init();
+    kb_init();
+    self_extend_init();
+    ata_init();
+    kbfs_init();
+    kbfs_load();  // Load saved knowledge from disk on boot
 
     terminal_newline();
     terminal_render_prompt();
@@ -58,16 +65,13 @@ void kernel_main() {
     while(1) {
         if(!(inb(0x64)&0x01)) continue;
         unsigned char sc = inb(0x60);
-
-        // Track shift key (scancode 0x2A left shift, 0x36 right shift)
-        if(sc == 0x2A || sc == 0x36){ shift_held=1; continue; }
-        if(sc == 0xAA || sc == 0xB6){ shift_held=0; continue; }
-
-        if(sc&0x80) continue;  // other key releases
+        if(sc==0x2A||sc==0x36){shift_held=1;continue;}
+        if(sc==0xAA||sc==0xB6){shift_held=0;continue;}
+        if(sc&0x80) continue;
         if(sc==0x0E){terminal_handle_key('\b');continue;}
         if(sc<sizeof(sc2a)){
-            char c = shift_held ? sc2a_shift[sc] : sc2a[sc];
-            if(c) terminal_handle_key(c);
+            char c=shift_held?sc2a_shift[sc]:sc2a[sc];
+            if(c)terminal_handle_key(c);
         }
     }
 }

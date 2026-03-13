@@ -1,5 +1,7 @@
 #include "ai_exec.h"
 #include "intent.h"
+#include "knowledge/kb.h"
+#include "knowledge/self_extend.h"
 #include "../terminal/terminal.h"
 #include "../compiler/compiler.h"
 #include "../compiler/lexer.h"
@@ -8,10 +10,10 @@
 #include "../syscall/syscall.h"
 
 static int  seq(const char*a,const char*b){while(*a&&*b){if(*a!=*b)return 0;a++;b++;}return *a==*b;}
+static int  sstart(const char*s,const char*p){while(*p){if(*s!=*p)return 0;s++;p++;}return 1;}
 static void scopy(char*d,const char*s,int m){int i=0;while(s[i]&&i<m-1){d[i]=s[i];i++;}d[i]=0;}
 static int  slen(const char*s){int n=0;while(*s++)n++;return n;}
 
-// Build AIOS source from intent and compile+run it
 static void compile_and_run(const char* src){
     compile_result_t result;
     int r = compiler_compile(src, &result);
@@ -25,9 +27,7 @@ static void compile_and_run(const char* src){
     kfree(result.code);
 }
 
-// Simple expression evaluator for calc intent
 static int eval_expr(const char* s){
-    // Parse: NUM OP NUM
     int a=0,b=0;
     char op=0;
     int i=0;
@@ -39,10 +39,10 @@ static int eval_expr(const char* s){
     while(s[i]>='0'&&s[i]<='9'){b=b*10+(s[i]-'0');i++;}
     switch(op){
         case '+': return a+b;
-        case '=': return a+b;  // = is + without shift
+        case '=': return a+b;
         case '-': return a-b;
         case '*': return a*b;
-        case 'x': return a*b;  // x as multiply
+        case 'x': return a*b;
         case '/': return b?a/b:0;
         default:  return 0;
     }
@@ -54,10 +54,11 @@ void ai_exec_init(){
 }
 
 void ai_exec(const char* input){
+    if(self_extend_parse(input)) return;
+
     intent_t intent;
     intent_parse(input, &intent);
 
-    // Show intent debug in dim color
     terminal_print_color("[AI:", MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
     terminal_print_color(intent_name(intent.type), MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
     terminal_print_color("] ", MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
@@ -79,10 +80,8 @@ void ai_exec(const char* input){
             break;
 
         case INTENT_PRINT: {
-            // Compile: print "arg1";
             char src[256];
             char* p = src;
-            // Build source string manually
             const char* prefix = "print \"";
             while(*prefix)*p++=*prefix++;
             const char* a = intent.arg1;
@@ -164,12 +163,27 @@ void ai_exec(const char* input){
             break;
         }
 
-        case INTENT_AI_QUERY:
-            terminal_print_color("I understand the question.\n",
-                                 MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
-            terminal_print("Phase 5 will add full knowledge reasoning.\n");
-            terminal_print("For now: try 'help' to see what I can do.\n");
+        case INTENT_AI_QUERY: {
+            const char* q = input;
+            if(sstart(input,"what is "))  q=input+8;
+            else if(sstart(input,"what are ")) q=input+9;
+            else if(sstart(input,"who is "))  q=input+7;
+            char qbuf[64]; int qi=0;
+            while(q[qi]&&qi<63){qbuf[qi]=q[qi];qi++;}
+            qbuf[qi]=0;
+            const char* kbval = kb_get(qbuf);
+            if(kbval){
+                terminal_print_color(qbuf,MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+                terminal_print_color(" = ",MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
+                terminal_print_color(kbval,MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+                terminal_newline();
+            } else {
+                terminal_print_color("Unknown: ",MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+                terminal_print(qbuf);
+                terminal_print_color("\nTry: knowledge\n",MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
+            }
             break;
+        }
 
         case INTENT_UNKNOWN:
         default:
