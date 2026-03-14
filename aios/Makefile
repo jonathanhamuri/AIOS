@@ -21,6 +21,7 @@ OBJS = kernel/entry_mb.o \
        kernel/disk/kbfs.o \
        kernel/graphics/vga.o \
        kernel/graphics/vga_commands.o \
+       kernel/userspace/userspace.o \
 
 all: aios.iso
 

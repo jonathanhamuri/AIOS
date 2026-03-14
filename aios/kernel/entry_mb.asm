@@ -74,12 +74,17 @@ idt_install_syscall:
     ret
 
 
+global our_gdt
 our_gdt:
-    dq 0x0000000000000000   ; null
-    dq 0x00CF9A000000FFFF   ; code: base=0, limit=4GB, ring0, exec/read
-    dq 0x00CF92000000FFFF   ; data: base=0, limit=4GB, ring0, read/write
+    dq 0x0000000000000000   ; 0x00 null
+    dq 0x00CF9A000000FFFF   ; 0x08 ring0 code
+    dq 0x00CF92000000FFFF   ; 0x10 ring0 data
+    dq 0x00CFFA000000FFFF   ; 0x18 ring3 code (DPL=3)
+    dq 0x00CFF2000000FFFF   ; 0x20 ring3 data (DPL=3)
+    dq 0x0000000000000000   ; 0x28 TSS (filled at runtime)
+    dq 0x0000000000000000   ; 0x30 TSS high (for alignment)
 our_gdt_desc:
-    dw 23
+    dw 55
     dd our_gdt
 
 isr_stub:
