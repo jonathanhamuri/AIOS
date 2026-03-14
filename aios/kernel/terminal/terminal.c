@@ -159,6 +159,9 @@ void terminal_print_hex(unsigned int n) {
     }
 }
 
+void terminal_reset_input() {
+    term.cmd_len = 0;
+}
 void terminal_render_prompt() {
     terminal_set_color(MAKE_COLOR(COLOR_BGREEN, COLOR_BLACK));
     terminal_print("AIOS");

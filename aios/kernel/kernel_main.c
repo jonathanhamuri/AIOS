@@ -43,6 +43,9 @@ static unsigned char sc2a_shift[] = {
     'B','N','M','<','>','?',0,'*',0,' ',0
 };
 static int shift_held = 0;
+static int ctrl_held = 0;
+static char clipboard[256] = {0};
+static int clipboard_len = 0;
 
 void kernel_main() {
     pmm_init();
@@ -60,8 +63,6 @@ void kernel_main() {
     ai_exec_init();
     kb_init();
     self_extend_init();
-    vga_init();
-    vga_shell_init();
     vga_init();
     vga_shell_init();
     vga_shell_print("AIOS booting...", 2);
@@ -88,14 +89,43 @@ void kernel_main() {
         unsigned char sc = inb(0x60);
         if(sc==0x2A||sc==0x36){shift_held=1;continue;}
         if(sc==0xAA||sc==0xB6){shift_held=0;continue;}
-        // Mirror keypress to VGA shell
+        if(sc==0x1D){ctrl_held=1;continue;}
+        if(sc==0x9D){ctrl_held=0;continue;}
         extern void vga_shell_print(const char* s, unsigned char color);
         extern int vga_active;
         if(sc&0x80) continue;
-        if(sc==0x0E){terminal_handle_key('\b');continue;}
+        // Backspace AND Delete both erase
+        if(sc==0x0E||sc==0x53){terminal_handle_key('\b');continue;}
+        // Ctrl combinations
+        if(ctrl_held){
+            if(sc==0x2E){
+                // Ctrl+C: cancel line
+                terminal_print_color("^C\n",MAKE_COLOR(COLOR_BRED,COLOR_BLACK));
+                if(vga_active) vga_shell_print("^C\n",4);
+                terminal_reset_input();
+                terminal_render_prompt();
+                if(vga_active) vga_shell_prompt();
+                continue;
+            }
+            if(sc==0x26){
+                // Ctrl+L: clear screen
+                terminal_clear();
+                terminal_render_prompt();
+                if(vga_active){vga_shell_init();vga_shell_prompt();}
+                continue;
+            }
+            if(sc==0x2F){
+                // Ctrl+V: paste clipboard
+                for(int i=0;i<clipboard_len;i++)
+                    terminal_handle_key(clipboard[i]);
+                continue;
+            }
+
+            continue;
+        }
         if(sc<sizeof(sc2a)){
-            char c=shift_held?sc2a_shift[sc]:sc2a[sc];
-            if(c)terminal_handle_key(c);
+            char ch=shift_held?sc2a_shift[sc]:sc2a[sc];
+            if(ch) terminal_handle_key(ch);
         }
     }
 }

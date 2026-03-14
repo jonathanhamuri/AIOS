@@ -1,3 +1,4 @@
+#include "../graphics/vga_commands.h"
 #include "ai_exec.h"
 #include "intent.h"
 #include "knowledge/kb.h"
@@ -54,6 +55,7 @@ void ai_exec_init(){
 }
 
 void ai_exec(const char* input){
+    if(vga_handle_command(input)) return;
     if(self_extend_parse(input)) return;
 
     intent_t intent;
