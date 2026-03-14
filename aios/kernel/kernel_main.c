@@ -88,6 +88,9 @@ void kernel_main() {
         unsigned char sc = inb(0x60);
         if(sc==0x2A||sc==0x36){shift_held=1;continue;}
         if(sc==0xAA||sc==0xB6){shift_held=0;continue;}
+        // Mirror keypress to VGA shell
+        extern void vga_shell_print(const char* s, unsigned char color);
+        extern int vga_active;
         if(sc&0x80) continue;
         if(sc==0x0E){terminal_handle_key('\b');continue;}
         if(sc<sizeof(sc2a)){

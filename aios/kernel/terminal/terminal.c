@@ -1,3 +1,4 @@
+#include "../graphics/vga.h"
 #include "terminal.h"
 #include "../mm/heap.h"
 
@@ -130,6 +131,7 @@ void terminal_newline() {
 }
 
 void terminal_print(const char* s) {
+    if(vga_active) vga_shell_print(s, 10);
     while (*s) terminal_putchar(*s++);
 }
 
@@ -163,6 +165,7 @@ void terminal_render_prompt() {
     terminal_set_color(MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK));
     terminal_print("> ");
     terminal_set_color(MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK));
+    if(vga_active) vga_shell_prompt();
 }
 
 void terminal_handle_key(char c) {
@@ -198,5 +201,6 @@ void terminal_handle_key(char c) {
     if (term.cmd_len < CMD_BUF_MAX - 1) {
         term.cmd_buf[term.cmd_len++] = c;
         terminal_putchar(c);
+        if(vga_active){ char s[2]; s[0]=c; s[1]=0; vga_shell_print(s, 14); }
     }
 }
