@@ -1,3 +1,4 @@
+#include "graphics/vga.h"
 #include "mm/pmm.h"
 #include "mm/heap.h"
 #include "terminal/terminal.h"
@@ -59,12 +60,18 @@ void kernel_main() {
     ai_exec_init();
     kb_init();
     self_extend_init();
+    vga_init();
+    vga_shell_init();
+    vga_init();
+    vga_shell_init();
+    vga_shell_print("AIOS booting...", 2);
     ata_init();
     kbfs_init();
     kbfs_load();  // Load saved knowledge from disk on boot
 
     terminal_newline();
     terminal_render_prompt();
+    if(vga_active) vga_shell_prompt();
     __asm__ volatile("sti");
 
     while(1) {

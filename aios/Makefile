@@ -18,7 +18,8 @@ OBJS = kernel/entry_mb.o \
        kernel/ai/knowledge/kb.o \
        kernel/ai/knowledge/self_extend.o \
        kernel/disk/ata.o \
-       kernel/disk/kbfs.o
+       kernel/disk/kbfs.o \
+       kernel/graphics/vga.o \
 
 all: aios.iso
 
