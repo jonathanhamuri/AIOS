@@ -22,6 +22,7 @@ OBJS = kernel/entry_mb.o \
        kernel/graphics/vga.o \
        kernel/graphics/vga_commands.o \
        kernel/userspace/userspace.o \
+       kernel/net/rtl8139.o \
 
 all: aios.iso
 

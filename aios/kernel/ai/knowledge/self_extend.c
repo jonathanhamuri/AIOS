@@ -125,6 +125,114 @@ int self_extend_parse(const char* input) {
         process_list();
         return 1;
     }
+    if(sstart(input,"send message ")||sstart(input,"ping ")){
+        extern void net_send_message(const char* msg, unsigned char* dst_ip, unsigned short port);
+        unsigned char dst[4]={10,0,2,2};
+        const char* msg = input + (sstart(input,"send message ") ? 13 : 5);
+        net_send_message(msg, dst, 7777);
+        return 1;
+    }
+    if(sstart(input,"net status")||sstart(input,"network status")){
+        extern unsigned char mac_addr[];
+        extern unsigned char ip_addr[];
+        terminal_print_color("[NET] IP: 10.0.2.15\n",MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+        return 1;
+    }
+    if(sstart(input,"ring3")||sstart(input,"userspace test")){
+        extern int userspace_exec(void* code, unsigned int size);
+        // Simple user program: just loops (will GP fault safely in ring3)
+        // x86: mov eax,1 / int 0x80 / ret
+        unsigned char user_prog[] = {
+            0xB8,0x01,0x00,0x00,0x00,  // mov eax, 1
+            0xCD,0x80,                  // int 0x80
+            0xC3                        // ret
+        };
+        terminal_print_color("[Ring3] Launching test process in user space...\n",
+            MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+        userspace_exec(user_prog, sizeof(user_prog));
+        return 1;
+    }
+    if(sstart(input,"send message ")||sstart(input,"ping ")){
+        extern void net_send_message(const char* msg, unsigned char* dst_ip, unsigned short port);
+        unsigned char dst[4]={10,0,2,2};
+        const char* msg = input + (sstart(input,"send message ") ? 13 : 5);
+        net_send_message(msg, dst, 7777);
+        return 1;
+    }
+    if(sstart(input,"net status")||sstart(input,"network status")){
+        extern unsigned char mac_addr[];
+        extern unsigned char ip_addr[];
+        terminal_print_color("[NET] IP: 10.0.2.15\n",MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+        return 1;
+    }
+    if(sstart(input,"ring3")||sstart(input,"userspace test")){
+        extern int userspace_exec(void* code, unsigned int size);
+        // Simple user program: just loops (will GP fault safely in ring3)
+        // x86: mov eax,1 / int 0x80 / ret
+        unsigned char user_prog[] = {
+            0xB8,0x01,0x00,0x00,0x00,  // mov eax, 1
+            0xCD,0x80,                  // int 0x80
+            0xC3                        // ret
+        };
+        terminal_print_color("[Ring3] Launching test process in user space...\n",
+            MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+        userspace_exec(user_prog, sizeof(user_prog));
+        return 1;
+    }
+    if(sstart(input,"send message ")||sstart(input,"ping ")){
+        extern void net_send_message(const char* msg, unsigned char* dst_ip, unsigned short port);
+        unsigned char dst[4]={10,0,2,2};
+        const char* msg = input + (sstart(input,"send message ") ? 13 : 5);
+        net_send_message(msg, dst, 7777);
+        return 1;
+    }
+    if(sstart(input,"net status")||sstart(input,"network status")){
+        extern unsigned char mac_addr[];
+        extern unsigned char ip_addr[];
+        terminal_print_color("[NET] IP: 10.0.2.15\n",MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+        return 1;
+    }
+    if(sstart(input,"ring3")||sstart(input,"userspace test")){
+        extern int userspace_exec(void* code, unsigned int size);
+        // Simple user program: just loops (will GP fault safely in ring3)
+        // x86: mov eax,1 / int 0x80 / ret
+        unsigned char user_prog[] = {
+            0xB8,0x01,0x00,0x00,0x00,  // mov eax, 1
+            0xCD,0x80,                  // int 0x80
+            0xC3                        // ret
+        };
+        terminal_print_color("[Ring3] Launching test process in user space...\n",
+            MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+        userspace_exec(user_prog, sizeof(user_prog));
+        return 1;
+    }
+    if(sstart(input,"send message ")||sstart(input,"ping ")){
+        extern void net_send_message(const char* msg, unsigned char* dst_ip, unsigned short port);
+        unsigned char dst[4]={10,0,2,2};
+        const char* msg = input + (sstart(input,"send message ") ? 13 : 5);
+        net_send_message(msg, dst, 7777);
+        return 1;
+    }
+    if(sstart(input,"net status")||sstart(input,"network status")){
+        extern unsigned char mac_addr[];
+        extern unsigned char ip_addr[];
+        terminal_print_color("[NET] IP: 10.0.2.15\n",MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+        return 1;
+    }
+    if(sstart(input,"ring3")||sstart(input,"userspace test")){
+        extern int userspace_exec(void* code, unsigned int size);
+        // Simple user program: just loops (will GP fault safely in ring3)
+        // x86: mov eax,1 / int 0x80 / ret
+        unsigned char user_prog[] = {
+            0xB8,0x01,0x00,0x00,0x00,  // mov eax, 1
+            0xCD,0x80,                  // int 0x80
+            0xC3                        // ret
+        };
+        terminal_print_color("[Ring3] Launching test process in user space...\n",
+            MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+        userspace_exec(user_prog, sizeof(user_prog));
+        return 1;
+    }
     if(sstart(input,"ticks")||sstart(input,"timer")){
         extern unsigned int timer_ticks_bss;
         terminal_print_color("[TIMER] ticks=",MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));

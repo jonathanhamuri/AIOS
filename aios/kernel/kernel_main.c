@@ -1,3 +1,4 @@
+#include "net/net.h"
 #include "userspace/userspace.h"
 #include "graphics/vga.h"
 #include "mm/pmm.h"
@@ -64,6 +65,7 @@ void kernel_main() {
     ai_exec_init();
     kb_init();
     self_extend_init();
+    net_init();
     userspace_init();
     vga_init();
     vga_shell_init();
