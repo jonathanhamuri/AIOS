@@ -162,13 +162,20 @@ void terminal_print_hex(unsigned int n) {
 void terminal_reset_input() {
     term.cmd_len = 0;
 }
+void terminal_copy_to_clipboard(char* buf, int* len) {
+    *len = term.cmd_len;
+    for(int i=0;i<term.cmd_len;i++) buf[i]=term.cmd_buf[i];
+    buf[*len]=0;
+}
 void terminal_render_prompt() {
+    if(vga_active){
+        vga_shell_prompt();
+        return;
+    }
     terminal_set_color(MAKE_COLOR(COLOR_BGREEN, COLOR_BLACK));
     terminal_print("AIOS");
     terminal_set_color(MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK));
     terminal_print("> ");
-    terminal_set_color(MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK));
-    if(vga_active) vga_shell_prompt();
 }
 
 void terminal_handle_key(char c) {
@@ -191,11 +198,16 @@ void terminal_handle_key(char c) {
     }
 
     if (c == '\b') {
-        // Backspace
         if (term.cmd_len > 0) {
             term.cmd_len--;
             if (term.col > 0) term.col--;
             vga_set(term.row, term.col, ' ', term.color);
+            if(vga_active && input_cursor_x > 122){
+                vga_rectfill(input_cursor_x,185,6,10,COL_DGRAY);
+                input_cursor_x-=8;
+                vga_rectfill(input_cursor_x,185,6,10,COL_DGRAY);
+                vga_rectfill(input_cursor_x,185,6,10,COL_WHITE);
+            }
         }
         return;
     }
@@ -204,6 +216,12 @@ void terminal_handle_key(char c) {
     if (term.cmd_len < CMD_BUF_MAX - 1) {
         term.cmd_buf[term.cmd_len++] = c;
         terminal_putchar(c);
-        if(vga_active){ char s[2]; s[0]=c; s[1]=0; vga_shell_print(s, 14); }
+        if(vga_active){
+            vga_rectfill(input_cursor_x,185,6,10,COL_DGRAY);
+            vga_drawchar(input_cursor_x,186,c,COL_WHITE,COL_DGRAY);
+            input_cursor_x+=8;
+            if(input_cursor_x>312) input_cursor_x=122;
+            vga_rectfill(input_cursor_x,185,6,10,COL_WHITE);
+        }
     }
 }

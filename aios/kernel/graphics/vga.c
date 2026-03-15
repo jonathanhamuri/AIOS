@@ -3,7 +3,8 @@
 
 int vga_active = 0;
 int shell_cursor_x = 2;
-int shell_cursor_y = 20;
+int shell_cursor_y = 14;
+int input_cursor_x = 50;
 
 static void outb(unsigned short port, unsigned char val) {
     __asm__ volatile("outb %0,%1"::"a"(val),"Nd"(port));
@@ -196,29 +197,39 @@ void vga_init() {
     for(int i=0;i<21;i++){outb(0x3C0,i);outb(0x3C0,ac[i]);}
     outb(0x3C0,0x20);
     vga_active=1;
-    terminal_print_color("Graphics         : OK (320x200)\n",MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+    terminal_print_color("Graphics         : OK (320x200)\n",
+        MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
 }
 
 void vga_shell_init() {
     vga_clear(COL_BLACK);
-    vga_rectfill(0,0,VGA_WIDTH,12,COL_CYAN);
-    vga_drawstring(50,2,"AIOS - AI Operating System",COL_BLACK,COL_CYAN);
-    vga_line(0,12,VGA_WIDTH-1,12,COL_GREEN);
-    vga_rectfill(0,190,VGA_WIDTH,10,COL_DGRAY);
-    vga_drawstring(2,191,"Phase 8: Graphics Shell",COL_GREEN,COL_DGRAY);
+    vga_rectfill(0,0,320,10,5);
+    vga_drawstring(70,1,"AIOS Terminal",COL_WHITE,5);
+    vga_line(0,10,319,10,COL_DGRAY);
+    vga_rectfill(0,182,320,18,COL_DGRAY);
+    vga_line(0,182,319,182,COL_GREEN);
+    vga_drawstring(2,186,"aios",COL_GREEN,COL_DGRAY);
+    vga_drawstring(34,186,"@",COL_WHITE,COL_DGRAY);
+    vga_drawstring(42,186,"system",COL_CYAN,COL_DGRAY);
+    vga_drawstring(90,186,":",COL_WHITE,COL_DGRAY);
+    vga_drawstring(98,186,"~$",COL_WHITE,COL_DGRAY);
+    input_cursor_x=122;
+    vga_rectfill(122,185,6,10,COL_WHITE);
     shell_cursor_x=2;
-    shell_cursor_y=20;
+    shell_cursor_y=13;
 }
-
 void vga_shell_newline() {
     shell_cursor_x=2;
     shell_cursor_y+=9;
-    if(shell_cursor_y>180){
-        vga_rectfill(0,14,VGA_WIDTH,176,COL_BLACK);
-        shell_cursor_y=20;
+    if(shell_cursor_y>172){
+        unsigned char* fb=(unsigned char*)VGA_MEMORY;
+        for(int y=12;y<172;y++)
+            for(int x=0;x<320;x++)
+                fb[y*320+x]=fb[(y+9)*320+x];
+        vga_rectfill(0,163,320,9,COL_BLACK);
+        shell_cursor_y=163;
     }
 }
-
 void vga_shell_print(const char* s, unsigned char color) {
     while(*s){
         if(*s=='\n') vga_shell_newline();
@@ -230,9 +241,32 @@ void vga_shell_print(const char* s, unsigned char color) {
         s++;
     }
 }
-
 void vga_shell_prompt() {
-    vga_shell_newline();
-    vga_drawstring(shell_cursor_x,shell_cursor_y,"AIOS> ",COL_YELLOW,COL_BLACK);
-    shell_cursor_x+=48;
+    vga_rectfill(0,182,320,18,COL_DGRAY);
+    vga_line(0,182,319,182,COL_GREEN);
+    vga_drawstring(2,186,"aios",COL_GREEN,COL_DGRAY);
+    vga_drawstring(34,186,"@",COL_WHITE,COL_DGRAY);
+    vga_drawstring(42,186,"system",COL_CYAN,COL_DGRAY);
+    vga_drawstring(90,186,":",COL_WHITE,COL_DGRAY);
+    vga_drawstring(98,186,"~$",COL_WHITE,COL_DGRAY);
+    input_cursor_x=122;
+    vga_rectfill(122,185,6,10,COL_WHITE);
+}
+
+
+
+
+void vga_scroll_up() {
+    unsigned char* fb=(unsigned char*)VGA_MEMORY;
+    for(int y=12;y<172;y++)
+        for(int x=0;x<320;x++)
+            fb[y*320+x]=fb[(y+9)*320+x];
+    vga_rectfill(0,163,320,9,COL_BLACK);
+}
+void vga_scroll_down() {
+    unsigned char* fb=(unsigned char*)VGA_MEMORY;
+    for(int y=170;y>=21;y--)
+        for(int x=0;x<320;x++)
+            fb[y*320+x]=fb[(y-9)*320+x];
+    vga_rectfill(0,12,320,9,COL_BLACK);
 }

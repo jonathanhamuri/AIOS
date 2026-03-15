@@ -50,6 +50,7 @@ void terminal_set_color(unsigned char color);
 void terminal_handle_key(char c);
 void terminal_render_prompt();
 void terminal_reset_input();
+void terminal_copy_to_clipboard(char* buf, int* len);
 
 // AI interface — called when user hits Enter
 void ai_process_input(const char* input);

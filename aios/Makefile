@@ -23,6 +23,8 @@ OBJS = kernel/entry_mb.o \
        kernel/graphics/vga_commands.o \
        kernel/userspace/userspace.o \
        kernel/net/rtl8139.o \
+       kernel/ai/codegen/ai_codegen.o \
+       kernel/graphics/framebuffer.o \
 
 all: aios.iso
 

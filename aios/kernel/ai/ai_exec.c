@@ -1,3 +1,4 @@
+#include "codegen/ai_codegen.h"
 #include "../graphics/vga_commands.h"
 #include "ai_exec.h"
 #include "intent.h"
@@ -57,6 +58,26 @@ void ai_exec_init(){
 void ai_exec(const char* input){
     if(vga_handle_command(input)) return;
     if(self_extend_parse(input)) return;
+
+    // Phase 13: AI self-modification - generate and load modules
+    if(sstart(input,"create module ")||
+       sstart(input,"generate module ")||
+       sstart(input,"build module ")||
+       sstart(input,"make module ")||
+       sstart(input,"write module ")||
+       sstart(input,"module that ")||
+       sstart(input,"load module ")){
+        const char* desc = input;
+        // skip first word if it's create/generate/build/make/write/load
+        if(sstart(input,"create module ")) desc=input+14;
+        else if(sstart(input,"generate module ")) desc=input+16;
+        else if(sstart(input,"build module ")) desc=input+13;
+        else if(sstart(input,"make module ")) desc=input+12;
+        else if(sstart(input,"write module ")) desc=input+13;
+        else if(sstart(input,"load module ")) desc=input+12;
+        ai_load_module(desc);
+        return;
+    }
 
     intent_t intent;
     intent_parse(input, &intent);

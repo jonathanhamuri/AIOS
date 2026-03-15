@@ -20,6 +20,8 @@ IDT_BASE equ 0x20000
 
 _start:
     mov esp, 0x1FFFF0
+    ; Save multiboot info pointer (GRUB passes in ebx)
+    mov [mbi_ptr], ebx
     lgdt [our_gdt_desc]
     mov ax, 0x10
     mov ds, ax
@@ -165,3 +167,7 @@ timer_irq_handler:
 section .bss
 global timer_ticks_bss
 timer_ticks_bss resd 1
+
+section .data
+global mbi_ptr
+mbi_ptr dd 0
