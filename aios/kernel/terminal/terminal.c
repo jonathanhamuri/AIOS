@@ -170,7 +170,6 @@ void terminal_copy_to_clipboard(char* buf, int* len) {
 void terminal_render_prompt() {
     if(vga_active){
         vga_shell_prompt();
-        return;
     }
     terminal_set_color(MAKE_COLOR(COLOR_BGREEN, COLOR_BLACK));
     terminal_print("AIOS");
@@ -179,20 +178,27 @@ void terminal_render_prompt() {
 }
 
 void terminal_handle_key(char c) {
-    if (term.ai_mode) return;  // AI is thinking, ignore input
+    if (term.ai_mode) return;
 
     if (c == '\n' || c == '\r') {
-        // Submit command to AI processor
+        if(vga_active){
+            vga_rectfill(0,182,320,18,COL_DGRAY);
+            vga_line(0,182,319,182,COL_GREEN);
+            vga_drawstring(2,186,"aios",COL_GREEN,COL_DGRAY);
+            vga_drawstring(34,186,"@",COL_WHITE,COL_DGRAY);
+            vga_drawstring(42,186,"system",COL_CYAN,COL_DGRAY);
+            vga_drawstring(90,186,":",COL_WHITE,COL_DGRAY);
+            vga_drawstring(98,186,"~$",COL_WHITE,COL_DGRAY);
+            vga_rectfill(122,183,194,12,COL_DGRAY);
+            input_cursor_x = 122;
+        }
         terminal_newline();
         term.cmd_buf[term.cmd_len] = 0;
-
         if (term.cmd_len > 0) {
             ai_process_input(term.cmd_buf);
         } else {
             terminal_render_prompt();
         }
-
-        // Reset command buffer
         term.cmd_len = 0;
         return;
     }
@@ -202,26 +208,20 @@ void terminal_handle_key(char c) {
             term.cmd_len--;
             if (term.col > 0) term.col--;
             vga_set(term.row, term.col, ' ', term.color);
-            if(vga_active && input_cursor_x > 122){
-                vga_rectfill(input_cursor_x,185,6,10,COL_DGRAY);
-                input_cursor_x-=8;
-                vga_rectfill(input_cursor_x,185,6,10,COL_DGRAY);
-                vga_rectfill(input_cursor_x,185,6,10,COL_WHITE);
+            if(vga_active){
+                vga_rectfill(122,183,194,12,COL_DGRAY);
+                vga_input_redraw(term.cmd_buf, term.cmd_len);
             }
         }
         return;
     }
 
-    // Regular character
     if (term.cmd_len < CMD_BUF_MAX - 1) {
         term.cmd_buf[term.cmd_len++] = c;
         terminal_putchar(c);
         if(vga_active){
-            vga_rectfill(input_cursor_x,185,6,10,COL_DGRAY);
-            vga_drawchar(input_cursor_x,186,c,COL_WHITE,COL_DGRAY);
-            input_cursor_x+=8;
-            if(input_cursor_x>312) input_cursor_x=122;
-            vga_rectfill(input_cursor_x,185,6,10,COL_WHITE);
+            vga_rectfill(122,183,194,12,COL_DGRAY);
+            vga_input_redraw(term.cmd_buf, term.cmd_len);
         }
     }
 }

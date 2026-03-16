@@ -252,6 +252,22 @@ void vga_shell_prompt() {
     input_cursor_x=122;
     vga_rectfill(122,185,6,10,COL_WHITE);
 }
+// Draw input text in bar (called when typing)
+void vga_input_redraw(const char* buf, int len) {
+    // Clear input area
+    vga_rectfill(122,183,194,12,COL_DGRAY);
+    // Show last N chars that fit
+    int max_chars = 24; // 194/8
+    int start = len > max_chars ? len - max_chars : 0;
+    int cx = 122;
+    for(int i=start;i<len;i++){
+        vga_drawchar(cx,184,buf[i],COL_WHITE,COL_DGRAY);
+        cx+=8;
+    }
+    // Draw cursor
+    vga_rectfill(cx,183,6,10,COL_WHITE);
+    input_cursor_x = cx;
+}
 
 
 

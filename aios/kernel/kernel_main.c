@@ -1,3 +1,4 @@
+#include "ai/learning/learning.h"
 #include "graphics/framebuffer.h"
 #include "net/net.h"
 #include "userspace/userspace.h"
@@ -81,6 +82,7 @@ void kernel_main() {
     ata_init();
     kbfs_init();
     kbfs_load();  // Load saved knowledge from disk on boot
+    learning_init();
 
     terminal_newline();
     terminal_render_prompt();

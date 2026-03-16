@@ -1,4 +1,5 @@
 #include "ai_input.h"
+#include "../graphics/vga.h"
 #include "terminal.h"
 #include "../mm/pmm.h"
 #include "../mm/heap.h"

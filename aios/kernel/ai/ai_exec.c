@@ -1,3 +1,4 @@
+#include "learning/learning.h"
 #include "codegen/ai_codegen.h"
 #include "../graphics/vga_commands.h"
 #include "ai_exec.h"
@@ -58,6 +59,7 @@ void ai_exec_init(){
 void ai_exec(const char* input){
     if(vga_handle_command(input)) return;
     if(self_extend_parse(input)) return;
+    if(learning_handle(input)) return;
 
     // Phase 13: AI self-modification - generate and load modules
     if(sstart(input,"create module ")||
@@ -210,11 +212,13 @@ void ai_exec(const char* input){
 
         case INTENT_UNKNOWN:
         default:
+            // Try auto-generate before giving up
+            if(learning_handle(input)) break;
             terminal_print_color("I don't understand: '", MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
             terminal_print(input);
             terminal_print_color("'\n", MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
-            terminal_print("Try: hello, print <text>, memory, calculate 5+3\n");
-            terminal_print("Or type in French: bonjour, affiche <texte>\n");
+            terminal_print("Tip: teach aios X means Y\n");
+            terminal_print("     when i say X do Y\n");
             break;
     }
     terminal_newline();

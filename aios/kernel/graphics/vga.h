@@ -27,6 +27,7 @@ void vga_drawint(int x, int y, int val, unsigned char fg, unsigned char bg);
 void vga_shell_init();
 void vga_shell_print(const char* s, unsigned char color);
 void vga_shell_prompt();
+void vga_input_redraw(const char* buf, int len);
 void vga_scroll_up();
 void vga_scroll_down();
 void vga_shell_newline();
