@@ -25,6 +25,7 @@ OBJS = kernel/entry_mb.o \
        kernel/net/rtl8139.o \
        kernel/ai/codegen/ai_codegen.o \
        kernel/ai/learning/learning.o \
+       kernel/ai/engineering/engineering.o \
        kernel/graphics/framebuffer.o \
 
 all: aios.iso
