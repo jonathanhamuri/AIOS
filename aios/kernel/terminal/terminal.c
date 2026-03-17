@@ -1,3 +1,4 @@
+#include "../graphics/aios_ui.h"
 #include "../graphics/vga.h"
 #include "terminal.h"
 #include "../mm/heap.h"

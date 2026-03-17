@@ -1,3 +1,4 @@
+#include "../net/discovery/discovery.h"
 #include "engineering/engineering.h"
 #include "learning/learning.h"
 #include "codegen/ai_codegen.h"
@@ -62,6 +63,7 @@ void ai_exec(const char* input){
     if(self_extend_parse(input)) return;
     if(learning_handle(input)) return;
     if(engineering_handle(input)) return;
+    if(discovery_handle(input)) return;
 
     // Phase 13: AI self-modification - generate and load modules
     if(sstart(input,"create module ")||

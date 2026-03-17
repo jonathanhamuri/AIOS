@@ -1,3 +1,5 @@
+#include "net/discovery/discovery.h"
+#include "graphics/aios_ui.h"
 #include "ai/learning/learning.h"
 #include "graphics/framebuffer.h"
 #include "net/net.h"
@@ -71,6 +73,7 @@ void kernel_main() {
     self_extend_init();
     fb_init();
     net_init();
+    discovery_init();
     userspace_init();
     if(!fb_active){
         vga_init();
