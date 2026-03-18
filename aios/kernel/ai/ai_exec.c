@@ -1,3 +1,4 @@
+#include "autonomy/autonomy.h"
 #include "../apps/apps.h"
 #include "documents/docgen.h"
 #include "../net/discovery/discovery.h"
@@ -68,6 +69,8 @@ void ai_exec(const char* input){
     if(discovery_handle(input)) return;
     if(docgen_handle(input)) return;
     if(apps_handle(input)) return;
+    if(autonomy_handle(input)) return;
+    autonomy_observe(input);
 
     // Phase 13: AI self-modification - generate and load modules
     if(sstart(input,"create module ")||
