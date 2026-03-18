@@ -1,3 +1,4 @@
+#include "../apps/apps.h"
 #include "documents/docgen.h"
 #include "../net/discovery/discovery.h"
 #include "engineering/engineering.h"
@@ -66,6 +67,7 @@ void ai_exec(const char* input){
     if(engineering_handle(input)) return;
     if(discovery_handle(input)) return;
     if(docgen_handle(input)) return;
+    if(apps_handle(input)) return;
 
     // Phase 13: AI self-modification - generate and load modules
     if(sstart(input,"create module ")||

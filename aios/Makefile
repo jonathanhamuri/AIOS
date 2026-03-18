@@ -28,6 +28,7 @@ OBJS = kernel/entry_mb.o \
        kernel/ai/engineering/engineering.o \
        kernel/net/discovery/discovery.o \
        kernel/ai/documents/docgen.o \
+       kernel/apps/apps.o \
        kernel/graphics/framebuffer.o \
        kernel/graphics/aios_ui.o \
 

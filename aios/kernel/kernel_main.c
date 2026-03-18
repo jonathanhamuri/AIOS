@@ -1,3 +1,4 @@
+#include "apps/apps.h"
 #include "net/discovery/discovery.h"
 #include "graphics/aios_ui.h"
 #include "ai/learning/learning.h"
@@ -86,6 +87,7 @@ void kernel_main() {
     kbfs_init();
     kbfs_load();  // Load saved knowledge from disk on boot
     learning_init();
+    scheduler_init();
 
     terminal_newline();
     terminal_render_prompt();
@@ -100,6 +102,7 @@ void kernel_main() {
             last_tick = timer_ticks_bss;
             extern void scheduler_tick();
             scheduler_tick();
+            scheduler_tick_check((int)timer_ticks_bss);
         }
         continue;
     }
