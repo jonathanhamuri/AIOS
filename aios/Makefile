@@ -27,7 +27,7 @@ OBJS = kernel/entry_mb.o \
        kernel/ai/learning/learning.o \
        kernel/ai/engineering/engineering.o \
        kernel/net/discovery/discovery.o \
-       kernel/ai/documents/docgen.o \
+       kernel/ai/documents/docgen.o kernel/ai/documents/doc_page.o \
        kernel/apps/apps.o \
        kernel/ai/autonomy/autonomy.o \
        kernel/graphics/framebuffer.o \
