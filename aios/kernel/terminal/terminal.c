@@ -137,6 +137,8 @@ void terminal_print(const char* s) {
 }
 
 void terminal_print_color(const char* s, unsigned char color) {
+    if(aios_ui_active){ aios_ui_print(s, 14); return; }
+    if(aios_ui_active){ aios_ui_print(s, 14); }
     unsigned char old = term.color;
     term.color = color;
     terminal_print(s);
@@ -173,7 +175,7 @@ void terminal_render_prompt() {
         vga_shell_prompt();
     }
     terminal_set_color(MAKE_COLOR(COLOR_BGREEN, COLOR_BLACK));
-    terminal_print("AIOS");
+    terminal_print("AIMERANCIA");
     terminal_set_color(MAKE_COLOR(COLOR_BWHITE, COLOR_BLACK));
     terminal_print("> ");
 }
@@ -185,7 +187,7 @@ void terminal_handle_key(char c) {
         if(vga_active){
             vga_rectfill(0,182,320,18,COL_DGRAY);
             vga_line(0,182,319,182,COL_GREEN);
-            vga_drawstring(2,186,"aios",COL_GREEN,COL_DGRAY);
+            vga_drawstring(2,186,"aimerancia",COL_GREEN,COL_DGRAY);
             vga_drawstring(34,186,"@",COL_WHITE,COL_DGRAY);
             vga_drawstring(42,186,"system",COL_CYAN,COL_DGRAY);
             vga_drawstring(90,186,":",COL_WHITE,COL_DGRAY);

@@ -228,7 +228,7 @@ void fb_shell_prompt() {
     // Green line separator
     fb_rectfill(0,bar_y,fb_width,1,0x0000AA00);
     // Ubuntu-style prompt
-    fb_drawstring(4,bar_y+8,"aios",0x0000FF00,FB_DGRAY);      // green
+    fb_drawstring(4,bar_y+8,"aimerancia",0x0000FF00,FB_DGRAY);      // green
     fb_drawstring(36,bar_y+8,"@",FB_WHITE,FB_DGRAY);
     fb_drawstring(44,bar_y+8,"system",0x0000FFFF,FB_DGRAY);   // cyan
     fb_drawstring(92,bar_y+8,":",FB_WHITE,FB_DGRAY);
@@ -242,7 +242,7 @@ void fb_shell_init() {
     fb_clear(FB_BLACK);
     // Title bar - Ubuntu purple
     fb_rectfill(0,0,fb_width,22,0x00300030);
-    fb_drawstring(fb_width/2-70,6,"AIOS Terminal - AI Operating System",FB_WHITE,0x00300030);
+    fb_drawstring(fb_width/2-70,6,"AIMERANCIA - AI Operating System",FB_WHITE,0x00300030);
     // Separator line
     fb_rectfill(0,22,fb_width,1,0x00444444);
     fb_cursor_x = 4;

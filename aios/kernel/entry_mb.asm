@@ -1,13 +1,19 @@
 [BITS 32]
 
 MULTIBOOT_MAGIC  equ 0x1BADB002
-MULTIBOOT_FLAGS  equ 0x00
+MULTIBOOT_FLAGS  equ 0x04
 MULTIBOOT_CHKSUM equ -(MULTIBOOT_MAGIC + MULTIBOOT_FLAGS)
 
 section .multiboot
     dd MULTIBOOT_MAGIC
     dd MULTIBOOT_FLAGS
     dd MULTIBOOT_CHKSUM
+    dd 0, 0, 0, 0, 0
+    dd 0
+    dd 800
+    dd 600
+    dd 32
+
 
 section .text
 global _start

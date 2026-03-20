@@ -108,7 +108,7 @@ void ai_exec(const char* input){
                 terminal_print_color("Je comprends le francais et l'anglais.\n",
                                      MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
             } else {
-                terminal_print_color("Hello! AIOS is listening.\n",
+                terminal_print_color("Hello! AIMERANCIA is listening.\n",
                                      MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
                 terminal_print_color("I understand English and French.\n",
                                      MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));

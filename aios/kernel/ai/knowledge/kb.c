@@ -24,7 +24,7 @@ void kb_init() {
     facts_init_done=1;
 
     // Seed AIOS self-knowledge
-    kb_set("name",        "AIOS");
+    kb_set("name",        "AIMERANCIA");
     kb_set("version",     "0.5.0-phase5");
     kb_set("arch",        "x86 32-bit protected mode");
     kb_set("language",    "Assembly + C + AIOS native");

@@ -77,13 +77,13 @@ void kernel_main() {
     net_init();
     discovery_init();
     userspace_init();
-    if(!fb_active){
-        vga_init();
-        vga_shell_init();
+    if(1){
+        if(!fb_active) vga_init();
+        aios_ui_init();
     } else {
         fb_shell_init();
     }
-    vga_shell_print("AIOS booting...", 2);
+    vga_shell_print("AIMERANCIA booting...", 2);
     ata_init();
     kbfs_init();
     kbfs_load();  // Load saved knowledge from disk on boot
@@ -106,6 +106,9 @@ void kernel_main() {
             scheduler_tick();
             scheduler_tick_check((int)timer_ticks_bss);
             autonomy_auto_tick((int)timer_ticks_bss);
+            if(aios_ui_active) aios_ui_tick();
+            if(aios_ui_active) aios_ui_tick();
+            if(aios_ui_active) aios_ui_tick();
         }
         continue;
     }
@@ -120,8 +123,24 @@ void kernel_main() {
         extern void vga_shell_print(const char* s, unsigned char color);
         extern int vga_active;
         if(sc&0x80) continue;
-        if(sc==0x0E||sc==0x53){terminal_handle_key('\b');continue;}
-        if(sc==0x1C){terminal_handle_key('\n');continue;}
+        if(sc==0x0E||sc==0x53){
+            if(aios_ui_active) aios_ui_input_backspace();
+            else terminal_handle_key('\b');
+            continue;
+        }
+        if(sc==0x1C){
+            if(aios_ui_active){
+                static char cb[48];
+                const char* src=aios_ui_get_input();
+                int ci=0;
+                while(src[ci]&&ci<47){cb[ci]=src[ci];ci++;}
+                cb[ci]=0;
+                aios_ui_input_clear();
+                if(cb[0]){extern void ai_process_input(const char*);ai_process_input(cb);}
+                aios_ui_prompt();
+            } else terminal_handle_key('\n');
+            continue;
+        }
         if(sc==0x0F){
             terminal_handle_key(' ');terminal_handle_key(' ');
             terminal_handle_key(' ');terminal_handle_key(' ');
@@ -145,7 +164,7 @@ void kernel_main() {
             if(sc==0x26){
                 terminal_clear();
                 terminal_render_prompt();
-                if(vga_active){vga_shell_init();vga_shell_prompt();}
+                if(vga_active){aios_ui_init();}
                 continue;
             }
             if(sc==0x2F){
@@ -164,7 +183,7 @@ void kernel_main() {
             char ch=shift_held?sc2a_shift[sc]:sc2a[sc];
             if(caps_lock&&ch>='a'&&ch<='z') ch-=32;
             else if(caps_lock&&ch>='A'&&ch<='Z') ch+=32;
-            if(ch) terminal_handle_key(ch);
+            if(ch){if(aios_ui_active)aios_ui_input_char(ch);else terminal_handle_key(ch);}
         }
     }
 }

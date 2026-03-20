@@ -1,4 +1,4 @@
-w#ifndef HEAP_H
+#ifndef HEAP_H
 #define HEAP_H
 
 void  heap_init();

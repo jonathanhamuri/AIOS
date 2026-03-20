@@ -204,11 +204,11 @@ void vga_init() {
 void vga_shell_init() {
     vga_clear(COL_BLACK);
     vga_rectfill(0,0,320,10,5);
-    vga_drawstring(70,1,"AIOS Terminal",COL_WHITE,5);
+    vga_drawstring(70,1,"AIMERANCIA",COL_WHITE,5);
     vga_line(0,10,319,10,COL_DGRAY);
     vga_rectfill(0,182,320,18,COL_DGRAY);
     vga_line(0,182,319,182,COL_GREEN);
-    vga_drawstring(2,186,"aios",COL_GREEN,COL_DGRAY);
+    vga_drawstring(2,186,"aimerancia",COL_GREEN,COL_DGRAY);
     vga_drawstring(34,186,"@",COL_WHITE,COL_DGRAY);
     vga_drawstring(42,186,"system",COL_CYAN,COL_DGRAY);
     vga_drawstring(90,186,":",COL_WHITE,COL_DGRAY);
@@ -244,7 +244,7 @@ void vga_shell_print(const char* s, unsigned char color) {
 void vga_shell_prompt() {
     vga_rectfill(0,182,320,18,COL_DGRAY);
     vga_line(0,182,319,182,COL_GREEN);
-    vga_drawstring(2,186,"aios",COL_GREEN,COL_DGRAY);
+    vga_drawstring(2,186,"aimerancia",COL_GREEN,COL_DGRAY);
     vga_drawstring(34,186,"@",COL_WHITE,COL_DGRAY);
     vga_drawstring(42,186,"system",COL_CYAN,COL_DGRAY);
     vga_drawstring(90,186,":",COL_WHITE,COL_DGRAY);
