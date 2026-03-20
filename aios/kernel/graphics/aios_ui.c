@@ -1,4 +1,23 @@
 #include "aios_ui.h"
+
+/* Send string back to voice bridge via serial */
+static void voice_serial_send(const char* s){
+    while(*s){
+        unsigned char lsr, ch=(unsigned char)*s;
+        do{
+            __asm__ volatile("inb %1,%0":"=a"(lsr):"Nd"((unsigned short)0x3FD));
+        }while(!(lsr&0x20));
+        __asm__ volatile("outb %0,%1"::"a"(ch),"Nd"((unsigned short)0x3F8));
+        s++;
+    }
+    /* Send newline to mark end of response */
+    unsigned char lsr2, nl=10;
+    do{
+        __asm__ volatile("inb %1,%0":"=a"(lsr2):"Nd"((unsigned short)0x3FD));
+    }while(!(lsr2&0x20));
+    __asm__ volatile("outb %0,%1"::"a"(nl),"Nd"((unsigned short)0x3F8));
+}
+
 #include "../graphics/framebuffer.h"
 #include "../mm/pmm.h"
 #include "../ai/learning/learning.h"
