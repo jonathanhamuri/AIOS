@@ -181,3 +181,16 @@
 [17:59:55] AIMERANCIA: open document
 [18:00:14] YOU (en): write a essay about AI
 [18:00:17] AIMERANCIA: I am AIMERANCIA, AI-native autonomous operating system. 9 modules active. Ask me anything about the system.
+[18:14:09] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.
+[18:14:24] AIMERANCIA: AIMERANCIA online. I am your operating system. The screen you see is AIOS. Speak to me.
+[18:14:39] YOU (en): open document
+[18:14:40] AIMERANCIA: open document
+[18:15:07] YOU (en): open document
+[18:15:08] AIMERANCIA: open document
+[18:15:23] YOU (en): sleep
+[18:15:24] AIMERANCIA: sleep
+[18:15:34] YOU (en): sleep now
+[18:15:37] AIMERANCIA: Saving knowledge base and shutting down. Goodbye.
+[18:17:21] YOU (en): open document
+[18:17:21] AIMERANCIA: I am AIMERANCIA, AI-native autonomous operating system. 9 modules active. Ask me anything about the system.
+[18:17:31] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.

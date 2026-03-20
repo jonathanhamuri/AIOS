@@ -6,6 +6,7 @@
 #include "../process/process.h"
 #include "../compiler/compiler.h"
 #include "../ai/ai_exec.h"
+#include "../ai/documents/doc_page.h"
 
 // ── string helpers ────────────────────────────────────────────────────
 static int str_eq(const char* a, const char* b) {
@@ -125,6 +126,9 @@ void ai_process_input(const char* input) {
     // Skip leading spaces
     while (*input == ' ') input++;
     if (!*input) { terminal_render_prompt(); return; }
+
+    /* Document system — highest priority */
+    if(doc_page_handle(input)) return;
 
     // ── SHUTDOWN / SLEEP ─────────────────────────────────────────────
     if(str_starts(input,"sleep now")||str_starts(input,"shutdown")||
