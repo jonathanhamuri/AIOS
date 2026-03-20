@@ -118,7 +118,7 @@ static void draw_left_panel(void){
     hl(4,LP_W-4,sy,GOLD); sy+=6;
 
     /* Stats */
-    extern unsigned int pmm_free_pages(void);
+    extern int pmm_free_pages();
     int fp=pmm_free_pages();
     int mp=(256-fp)*100/256;
     fb_drawstring(6,sy,"MEM",GOLD,PANEL_BG);
