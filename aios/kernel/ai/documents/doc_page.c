@@ -398,7 +398,7 @@ static void fill_doc(const char*topic, char t){
     if(t=='E'){
         dcat(b,"Introduction\n\n",DOC_BODY_LEN);
         if(dstart(topic,"ai")||dstart(topic,"artificial")){
-            dcat(b,"Artificial intelligence (AI) is one of the most transformative technologies of the 21st century. AI is increasingly integrated into a wide range of sectors, revolutionizing industries by its ability to comprehend language, recognize patterns, and make decisions. This essay will explore the various applications, benefits and challenges associated with AI. In particular, we will look at key areas such as healthcare, finance, automotive, education, and cybersecurity where AI has made a significant impact.\n\n",DOC_BODY_LEN);
+            dcat(b,"Artificial intelligence (AI) is one of the most transformative technologies of the 21st century. AI is integrated into healthcare, finance, education, and cybersecurity.\n\n",DOC_BODY_LEN);
         } else if(dstart(topic,"climate")){
             dcat(b,"Climate change represents the defining environmental challenge of our era. The scientific consensus confirms that global temperatures are rising due to anthropogenic greenhouse gas emissions. This essay examines the causes, consequences, and potential solutions to this critical issue.\n\n",DOC_BODY_LEN);
         } else if(dstart(topic,"congo")||dstart(topic,"africa")){

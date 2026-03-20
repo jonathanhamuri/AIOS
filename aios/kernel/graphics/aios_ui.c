@@ -353,8 +353,10 @@ void aios_ui_draw(void){
     draw_statusbar();draw_left_panel();draw_right_panel();draw_center();draw_inputbar();
 }
 
+extern int doc_page_active(void);
 void aios_ui_tick(void){
     if(!aios_ui_active)return;
+    if(doc_page_active()) return; /* doc page owns screen */
     tick++;pulse+=pdir;
     if(pulse>=10)pdir=-1;if(pulse<=0)pdir=1;
     if(tick%8==0)pangle=(pangle+6)%360;
