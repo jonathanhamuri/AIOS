@@ -131,7 +131,21 @@ void terminal_newline() {
     if (term.row >= VGA_ROWS) terminal_scroll();
 }
 
+static void serial_send(const char* s){
+    while(*s){
+        unsigned char lsr,ch=*s;
+        do{__asm__ volatile("inb %1,%0":"=a"(lsr):"Nd"((unsigned short)0x3FD));}while(!(lsr&0x20));
+        __asm__ volatile("outb %0,%1"::"a"(ch),"Nd"((unsigned short)0x3F8));
+        if(ch==10){
+            unsigned char cr=13;
+            do{__asm__ volatile("inb %1,%0":"=a"(lsr):"Nd"((unsigned short)0x3FD));}while(!(lsr&0x20));
+            __asm__ volatile("outb %0,%1"::"a"(cr),"Nd"((unsigned short)0x3F8));
+        }
+        s++;
+    }
+}
 void terminal_print(const char* s) {
+    serial_send(s);
     if(vga_active) vga_shell_print(s, 10);
     while (*s) terminal_putchar(*s++);
 }

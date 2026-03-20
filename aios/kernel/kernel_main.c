@@ -107,6 +107,31 @@ void kernel_main() {
             scheduler_tick_check((int)timer_ticks_bss);
             autonomy_auto_tick((int)timer_ticks_bss);
             if(aios_ui_active) aios_ui_tick();
+            /* Poll serial for voice commands from bridge */
+            {
+                static char vbuf[128];
+                static int  vlen=0;
+                unsigned char lsr;
+                __asm__ volatile("inb %1,%0":"=a"(lsr):"Nd"((unsigned short)0x3FD));
+                if(lsr & 0x01){
+                    char ch;
+                    __asm__ volatile("inb %1,%0":"=a"(ch):"Nd"((unsigned short)0x3F8));
+                    if(ch=='\n'||ch=='\r'){
+                        if(vlen>0){
+                            vbuf[vlen]=0;
+                            /* Show on UI */
+                            aios_ui_set_status("PROCESSING...");
+                            aios_ui_voice_input(vbuf);
+                            /* Run through real AI */
+                            ai_process_input(vbuf);
+                            aios_ui_set_status("LISTENING...");
+                            vlen=0;
+                        }
+                    } else if(vlen<127){
+                        vbuf[vlen++]=ch;
+                    }
+                }
+            }
             if(aios_ui_active) aios_ui_tick();
             if(aios_ui_active) aios_ui_tick();
         }

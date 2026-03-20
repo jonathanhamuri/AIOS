@@ -376,7 +376,6 @@ int autonomy_handle(const char*input){
 }
 
 /* ── Voice bridge TCP server (port 7777) ── */
-#include "../../net/rtl8139.h"
 
 void voice_server_tick(void) {
     /* Handled by net stack — placeholder for socket accept */

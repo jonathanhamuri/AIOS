@@ -35,6 +35,7 @@ static unsigned int FONT;   /* font char width   */
 static unsigned int LH;     /* line height       */
 
 static int pulse=0, pdir=1, pangle=0, tick=0;
+static int orb_speaking=0, orb_speak_timer=0;
 static char ibuf[128]; static int ilen=0;
 static char status_str[32]="LISTENING...";
 
@@ -358,6 +359,28 @@ void aios_ui_print(const char*t,unsigned char color_unused){
     draw_log();
 }
 
+void aios_ui_voice_input(const char* text){
+    /* Show voice input in log with mic indicator */
+    char tmp[OC+1];
+    tmp[0]='>'; tmp[1]=' ';
+    int i=0;
+    while(text[i]&&i<OC-2){tmp[i+2]=text[i];i++;}
+    tmp[i+2]=0;
+    aios_ui_print(tmp, 14); /* gold — user voice */
+    aios_ui_set_status("PROCESSING...");
+    draw_orb_only();
+}
+void aios_ui_voice_response(const char* text){
+    /* Show AIMERANCIA response in log */
+    char tmp[OC+1];
+    tmp[0]='<'; tmp[1]=' ';
+    int i=0;
+    while(text[i]&&i<OC-2){tmp[i+2]=text[i];i++;}
+    tmp[i+2]=0;
+    aios_ui_print(tmp, 2); /* green — AIMERANCIA response */
+    aios_ui_set_status("LISTENING...");
+    draw_orb_only();
+}
 void aios_ui_prompt(void){aios_ui_set_status("LISTENING...");ilen=0;ibuf[0]=0;}
 void aios_ui_input_char(char c){if(ilen<127){ibuf[ilen++]=c;ibuf[ilen]=0;}}
 void aios_ui_input_backspace(void){if(ilen>0){ilen--;ibuf[ilen]=0;}}
