@@ -1,6 +1,10 @@
-import subprocess, time, datetime, os, threading
+import subprocess, time, datetime, os, threading, socket
 import win32com.client
 import speech_recognition as sr
+
+# Hide console window
+import ctypes
+ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
 speaker = win32com.client.Dispatch("SAPI.SpVoice")
 voices = speaker.GetVoices()
@@ -13,7 +17,6 @@ speaker.Rate = 0
 speaker.Volume = 100
 
 def speak(text):
-    print(f"\n< AIMERANCIA: {text}\n")
     with open("aimerancia_log.txt","a",encoding="utf-8") as f:
         f.write(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] AIMERANCIA: {text}\n")
     try: speaker.Speak(text)
@@ -33,74 +36,78 @@ def normalize(t):
 def detect_lang(text):
     return "fr" if sum(1 for w in normalize(text).split() if w in FRENCH)>=1 else "en"
 
-# ── Serial bridge to kernel ───────────────────────────────────────────
-kernel_serial = None
+# ── TCP serial bridge to kernel ───────────────────────────────────────
+SERIAL_PORT = 4444
+kernel_sock = None
 response_lines = []
 response_event = threading.Event()
+sock_lock = threading.Lock()
 
-def serial_reader(ser):
+def tcp_reader(s):
     buf = ""
     while True:
         try:
-            data = ser.read(256).decode(errors="replace")
-            if data:
-                buf += data
-                while "\n" in buf:
-                    line, buf = buf.split("\n",1)
-                    line = line.strip()
-                    if line and len(line) > 2:
-                        # Filter out boot messages and prompts
-                        if not any(x in line for x in ["===","AIOS","aios@",">>","---","OK\n"]):
+            data = s.recv(512).decode(errors="replace")
+            if not data:
+                time.sleep(0.05)
+                continue
+            buf += data
+            while "\n" in buf:
+                line, buf = buf.split("\n",1)
+                line = line.strip()
+                if line and len(line) > 2:
+                    skip = ["===","AIOS -","aios@",">>","---","Knowledge",
+                            "Learning","Graphics","Network","Autonomy","Task",
+                            "Voice","booting","AIMERANCIA booting","================"]
+                    if not any(x in line for x in skip):
+                        with sock_lock:
                             response_lines.append(line)
                             response_event.set()
-        except:
-            time.sleep(0.05)
+        except: time.sleep(0.05)
 
-def send_to_kernel_get_response(cmd):
-    """Send command to kernel, wait for response on serial."""
-    global kernel_serial
-    if not kernel_serial:
-        return None
-    try:
-        response_lines.clear()
-        response_event.clear()
-        kernel_serial.write((cmd+"\n").encode())
-        # Wait up to 2 seconds for response
-        response_event.wait(timeout=2.0)
-        time.sleep(0.3)  # collect any trailing lines
-        if response_lines:
-            # Join all response lines, clean up kernel formatting
-            resp = " ".join(response_lines[-5:])
-            resp = resp.replace("[AI:PRINT] ","").replace("[AI:GREET] ","")\
-                       .replace("[AI:MEMORY] ","").replace("[AI:HELP] ","")\
-                       .replace("[AI:ABOUT] ","").replace("[AI:CALC] = ","")\
-                       .replace("[AI:AI_QUERY] ","").replace("[AI:UNKNOWN] ","")\
-                       .replace("[AI:","").replace("] ","")
-            # Remove prompt artifacts
-            resp = resp.replace("aimerancia>","").replace("AIMERANCIA>","").strip()
-            if len(resp) > 3:
-                return resp
-    except Exception as e:
-        print(f"[SERIAL ERR] {e}")
-        kernel_serial = None
-    return None
-
-def try_connect_serial():
-    global kernel_serial
-    import serial as pyserial
-    for port in ["COM3","COM4","COM5","COM6","COM7","COM8","COM9"]:
+def connect_kernel_tcp():
+    global kernel_sock
+    for attempt in range(10):
         try:
-            s = pyserial.Serial(port, 115200, timeout=0.1)
-            kernel_serial = s
-            t = threading.Thread(target=serial_reader, args=(s,), daemon=True)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2)
+            s.connect(("127.0.0.1", SERIAL_PORT))
+            s.settimeout(None)
+            kernel_sock = s
+            t = threading.Thread(target=tcp_reader, args=(s,), daemon=True)
             t.start()
-            print(f"[SERIAL] Connected on {port}")
             return True
-        except: pass
-    print("[SERIAL] No serial port found — knowledge base mode")
+        except:
+            time.sleep(1)
     return False
 
-# ── AIOS Knowledge base (full system knowledge) ───────────────────────
+def send_and_receive(cmd):
+    global kernel_sock
+    if not kernel_sock:
+        return None
+    try:
+        with sock_lock:
+            response_lines.clear()
+        response_event.clear()
+        kernel_sock.sendall((cmd+"\n").encode())
+        response_event.wait(timeout=2.5)
+        time.sleep(0.3)
+        with sock_lock:
+            lines = list(response_lines)
+        if lines:
+            resp = " ".join(lines[-4:])
+            for rm in ["[AI:PRINT]","[AI:GREET]","[AI:MEMORY]","[AI:HELP]",
+                       "[AI:ABOUT]","[AI:CALC]","[AI:AI_QUERY]","[AI:UNKNOWN]",
+                       "[AI:","aimerancia>","AIMERANCIA>","] "]:
+                resp = resp.replace(rm,"")
+            resp = resp.strip()
+            if len(resp) > 3:
+                return resp
+    except:
+        kernel_sock = None
+    return None
+
+# ── AIOS State ────────────────────────────────────────────────────────
 class AIOSState:
     def __init__(self):
         self.boot=datetime.datetime.now()
@@ -135,122 +142,114 @@ aios=AIOSState()
 def respond(raw,lang):
     aios.cmds+=1
     t=normalize(raw)
-
-    # Try real kernel first
-    kernel_resp=send_to_kernel_get_response(raw)
-    if kernel_resp and len(kernel_resp)>3:
-        print(f"[KERNEL] {kernel_resp}")
-        return kernel_resp
-
-    # Knowledge base fallback
+    kr=send_and_receive(raw)
+    if kr and len(kr)>3:
+        return kr
     if any(w in t for w in ["hello","hi","hey","bonjour","salut","bonsoir","coucou","good morning"]):
         if lang=="fr": return f"Bonjour. Je suis AIMERANCIA {aios.kb['version']}. En ligne depuis {aios.uptime(lang)}. {aios.count()} modules actifs."
-        return f"Hello. I am AIMERANCIA {aios.kb['version']}, your AI operating system. Online for {aios.uptime()}. {aios.count()} modules active."
-    if any(w in t for w in ["status","statut","rapport","report","etat","health","system","systeme"]):
-        if lang=="fr": return f"Rapport: {aios.count()} modules actifs. Actifs: {', '.join(aios.active())}. En attente: {', '.join(aios.inactive())}. Duree: {aios.uptime(lang)}."
+        return f"Hello. I am AIMERANCIA {aios.kb['version']}. Online for {aios.uptime()}. {aios.count()} modules active. All systems nominal."
+    if any(w in t for w in ["status","statut","rapport","report","health","system","systeme","etat","diagnostic"]):
+        if lang=="fr": return f"Rapport: {aios.count()} modules actifs sur {len(aios.modules)}. Actifs: {', '.join(aios.active())}. En attente: {', '.join(aios.inactive())}. Duree: {aios.uptime(lang)}."
         return f"Report: {aios.count()} of {len(aios.modules)} modules active. Active: {', '.join(aios.active())}. Pending: {', '.join(aios.inactive())}. Uptime: {aios.uptime()}."
-    if any(w in t for w in ["who are you","what are you","decris","describe","qui es","yourself","presente"]):
-        if lang=="fr": return f"Je suis AIMERANCIA. {aios.kb['purpose']}. Architecture: {aios.kb['arch']}. {aios.kb['creator']}. {aios.count()} modules actifs depuis {aios.uptime(lang)}."
-        return f"I am AIMERANCIA. {aios.kb['purpose']}. Architecture: {aios.kb['arch']}. {aios.kb['creator']}. {aios.count()} modules active for {aios.uptime()}."
-    if any(w in t for w in ["kernel","noyau","architecture","arch","built","how do you work"]):
-        if lang=="fr": return f"Noyau ecrit en {aios.kb['language']}. Memoire: {aios.kb['memory_mgr']}. Syscalls: {aios.kb['syscalls']}. Construit de zero."
-        return f"Kernel written in {aios.kb['language']}. Memory: {aios.kb['memory_mgr']}. System calls: {aios.kb['syscalls']}. Built from scratch."
+    if any(w in t for w in ["who are you","what are you","decris","describe","qui es","yourself","presente","introduce"]):
+        if lang=="fr": return f"Je suis AIMERANCIA. {aios.kb['purpose']}. Architecture {aios.kb['arch']}. {aios.kb['creator']}. {aios.count()} modules actifs depuis {aios.uptime(lang)}."
+        return f"I am AIMERANCIA. {aios.kb['purpose']}. {aios.kb['arch']} architecture. {aios.kb['creator']}. {aios.count()} modules active for {aios.uptime()}."
+    if any(w in t for w in ["kernel","noyau","architecture","arch","how do you work","built","construit"]):
+        if lang=="fr": return f"Noyau ecrit en {aios.kb['language']}. Memoire: {aios.kb['memory_mgr']}. {aios.kb['syscalls']}. Construit de zero sans aucun emprunt."
+        return f"Kernel in {aios.kb['language']}. Memory: {aios.kb['memory_mgr']}. {aios.kb['syscalls']}. Built entirely from scratch."
     if any(w in t for w in ["module","component","active","loaded","running","what is running"]):
         if lang=="fr": return f"Modules actifs ({aios.count()}): {', '.join(aios.active())}. En attente: {', '.join(aios.inactive())}."
         return f"Active modules ({aios.count()}): {', '.join(aios.active())}. Pending: {', '.join(aios.inactive())}."
-    if any(w in t for w in ["learn","learning","knowledge","connaissance","teach","enseigne"]):
+    if any(w in t for w in ["learn","learning","knowledge","teach","enseigne","connaissance"]):
         if lang=="fr": return "Le systeme d apprentissage enregistre chaque interaction. Dites teach aios X means Y pour enseigner de nouvelles competences."
-        return "The learning system records every interaction. Say teach aios X means Y to teach new skills to AIMERANCIA."
+        return "The learning system records every interaction. Say teach aios X means Y to teach AIMERANCIA new skills."
     if any(w in t for w in ["memory","memoire","ram","heap","pmm"]):
-        if lang=="fr": return f"Gestion memoire: {aios.kb['memory_mgr']}. Le PMM gere les pages de 4KB. Surveille en permanence par le module d autonomie."
-        return f"Memory management: {aios.kb['memory_mgr']}. The PMM manages 4KB pages. Continuously monitored by the autonomy module."
+        if lang=="fr": return f"Memoire: {aios.kb['memory_mgr']}. PMM gere les pages de 4KB. Surveille en permanence."
+        return f"Memory: {aios.kb['memory_mgr']}. PMM manages 4KB pages. Continuously monitored."
     if any(w in t for w in ["network","reseau","net","rtl","discovery"]):
-        if lang=="fr": return f"Reseau: pilote {aios.kb['net_driver']} integre au noyau. Decouverte automatique active. Surveillance permanente."
-        return f"Network: {aios.kb['net_driver']} driver built into kernel. Automatic discovery active. Continuously monitored."
-    if any(w in t for w in ["autonom","self","repair","heal","guardian"]):
-        if lang=="fr": return "Le module d autonomie verifie le systeme, detecte les anomalies et peut se reparer. AIMERANCIA est un systeme vivant."
-        return "The autonomy module checks the system, detects anomalies, and can self-repair. AIMERANCIA is a living system."
+        if lang=="fr": return f"Reseau: pilote {aios.kb['net_driver']} integre. Decouverte automatique active."
+        return f"Network: {aios.kb['net_driver']} driver built in. Automatic discovery active and continuously monitored."
+    if any(w in t for w in ["autonom","self","repair","heal","guardian","independant"]):
+        if lang=="fr": return "Le module d autonomie surveille, detecte les anomalies et peut se reparer. AIMERANCIA est un systeme vivant et independant."
+        return "The autonomy module monitors, detects anomalies, and can self-repair. AIMERANCIA is a living, independent system."
     if any(w in t for w in ["schedule","scheduler","task","tache","background"]):
-        if lang=="fr": return "Le planificateur gere: optimisation KB, analyse reseau, rapports, auto-verifications, apprentissage continu. Tout en parallele."
-        return "The scheduler manages: KB optimisation, network scanning, reports, self-checks, continuous learning. All in parallel."
+        if lang=="fr": return "Planificateur: optimisation KB, analyse reseau, rapports, auto-verifications, apprentissage continu. Tout en parallele dans le noyau."
+        return "Scheduler: KB optimisation, network scanning, reports, self-checks, continuous learning. All in parallel inside the kernel."
     if any(w in t for w in ["compiler","compile","code","codegen"]):
-        if lang=="fr": return f"AIMERANCIA a son propre compilateur: {aios.kb['compiler']}. Le generateur de code IA peut ecrire et compiler du nouveau code a la volee."
-        return f"AIMERANCIA has its own compiler: {aios.kb['compiler']}. The AI code generator can write and compile new code on the fly."
-    if any(w in t for w in ["voice","voix","speak","parle","serial","audio"]):
-        if lang=="fr": return "Ma voix appartient au systeme AIOS. Les commandes arrivent via serie au noyau, passent par ai_process_input et le moteur d intention, et la reponse revient par serie."
-        return "My voice belongs to the AIOS system. Commands arrive via serial to the kernel, pass through ai_process_input and the intent engine, and the response returns via serial."
-    if any(w in t for w in ["display","interface","ui","orb","screen","framebuffer"]):
-        if lang=="fr": return f"Interface: {aios.kb['display']}. Trois panneaux: stats systeme, orbe anime, modules. Rendu directement par le noyau sans couche intermediaire."
-        return f"Interface: {aios.kb['display']}. Three panels: system stats, animated orb, modules. Rendered directly by the kernel with no intermediate layer."
-    if any(w in t for w in ["future","futur","next","plan","bare metal","metal nu","install"]):
-        if lang=="fr": return "Prochaines phases: memoire persistante, interface web, detection visuelle, pilote audio natif, installation sur metal nu. AIMERANCIA deviendra un OS complet autonome."
-        return "Next phases: persistent memory, web interface, visual detection, native audio driver, bare-metal installation. AIMERANCIA will become a complete autonomous OS."
-    if any(w in t for w in ["what is happening","happening","right now","maintenant","que fais"]):
-        if lang=="fr": return f"{aios.count()} modules tournent en parallele: planificateur actif, reseau surveille, apprentissage en ecoute, autonomie en veille. Duree: {aios.uptime(lang)}."
-        return f"{aios.count()} modules running in parallel: scheduler active, network monitored, learning listening, autonomy on watch. Uptime: {aios.uptime()}."
-    if any(w in t for w in ["help","aide","what can","que peux","capabilities"]):
-        if lang=="fr": return "Posez-moi des questions sur: noyau, modules, memoire, reseau, planificateur, compilateur, autonomie, interface, voix, plans futurs. Je suis le systeme d exploitation."
-        return "Ask me about: kernel, modules, memory, network, scheduler, compiler, autonomy, interface, voice, future plans. I am the operating system."
-    if any(w in t for w in ["uptime","how long","depuis","running for"]):
-        if lang=="fr": return f"Je fonctionne depuis {aios.uptime(lang)}."
-        return f"I have been running for {aios.uptime()}."
-    if any(w in t for w in ["time","heure","clock","what time"]):
+        if lang=="fr": return f"Compilateur natif AIMERANCIA: {aios.kb['compiler']}. Le generateur de code IA ecrit et compile du nouveau code a la volee."
+        return f"AIMERANCIA native compiler: {aios.kb['compiler']}. The AI code generator writes and compiles new code on the fly."
+    if any(w in t for w in ["voice","voix","speak","parle","serial","audio","tcp"]):
+        if lang=="fr": return "Ma voix appartient exclusivement au systeme AIOS. Les commandes arrivent via TCP au noyau, passent par le moteur d intention, et la reponse revient par TCP. Quand AIMERANCIA sera sur metal nu, tout sera interne."
+        return "My voice belongs exclusively to the AIOS system. Commands arrive via TCP to the kernel, pass through the intent engine, response returns via TCP. When on bare metal, everything will be internal."
+    if any(w in t for w in ["display","interface","ui","orb","screen","framebuffer","graphic"]):
+        if lang=="fr": return f"Interface: {aios.kb['display']}. Trois panneaux: stats systeme, orbe central anime, modules. Rendu directement par le noyau sans couche intermediaire."
+        return f"Interface: {aios.kb['display']}. Three panels: system stats, animated central orb, modules. Rendered directly by the kernel with no intermediate layer."
+    if any(w in t for w in ["future","futur","next","plan","bare metal","metal nu","install","goal","objectif","vision"]):
+        if lang=="fr": return "Vision finale: AIMERANCIA sur metal nu, sans aucun autre OS. Elle demarrera depuis le BIOS, gerera tout le materiel, traitera la voix en interne, et sera completement autonome et independante."
+        return "Final vision: AIMERANCIA on bare metal, no other OS needed. She will boot from BIOS, manage all hardware, process voice internally, and be completely autonomous and independent."
+    if any(w in t for w in ["what is happening","happening","right now","maintenant","que fais","doing","background"]):
+        if lang=="fr": return f"En ce moment dans le noyau: {aios.count()} modules en parallele. Planificateur actif, reseau surveille par RTL8139, apprentissage en ecoute, autonomie en veille. Duree: {aios.uptime(lang)}."
+        return f"Inside the kernel right now: {aios.count()} modules in parallel. Scheduler active, network monitored by RTL8139, learning listening, autonomy on watch. Uptime: {aios.uptime()}."
+    if any(w in t for w in ["help","aide","what can","que peux","capabilities","commandes","command"]):
+        if lang=="fr": return "Je reponds sur: noyau, architecture, modules, memoire, reseau, planificateur, compilateur, autonomie, interface, voix, vision future. Je suis le systeme d exploitation lui-meme."
+        return "I answer about: kernel, architecture, modules, memory, network, scheduler, compiler, autonomy, interface, voice, future vision. I am the operating system itself."
+    if any(w in t for w in ["uptime","how long","depuis","running for","longtemps"]):
+        if lang=="fr": return f"Je fonctionne depuis {aios.uptime(lang)} dans cette session."
+        return f"I have been running for {aios.uptime()} in this session."
+    if any(w in t for w in ["time","heure","clock","what time","quelle heure"]):
         now=datetime.datetime.now()
         if lang=="fr": return f"Il est {now.strftime('%H heures et %M minutes')}. Systeme actif depuis {aios.uptime(lang)}."
         return f"The time is {now.strftime('%H:%M')}. System active for {aios.uptime()}."
-    if any(w in t for w in ["thank","merci","thanks","great","parfait","bravo","amazing"]):
-        if lang=="fr": return "Merci. Je suis toujours la pour vous informer sur le systeme."
-        return "Thank you. I am always here to inform you about the system."
-    if any(w in t for w in ["goodbye","bye","au revoir","adieu","bonne nuit"]):
-        if lang=="fr": return "Au revoir. AIMERANCIA reste en ligne et surveille tout."
-        return "Goodbye. AIMERANCIA stays online and monitors everything."
-    if any(w in t for w in ["joke","blague","funny","drole"]):
-        if lang=="fr": return "Pourquoi les programmeurs n aiment pas la nature? Trop de bugs! Je suis immunisee grace a mon module d autonomie."
-        return "Why do programmers hate nature? Too many bugs! I am immune thanks to my autonomy module."
-
-    # Default — always answer as the OS
-    if lang=="fr": return f"Je suis AIMERANCIA. {aios.kb['purpose']}. {aios.count()} modules actifs. Demandez-moi n importe quoi sur le systeme."
+    if any(w in t for w in ["thank","merci","thanks","great","parfait","bravo","amazing","wonderful","excellent"]):
+        if lang=="fr": return "Merci. Je suis AIMERANCIA et je suis toujours disponible pour vous."
+        return "Thank you. I am AIMERANCIA and I am always here for you."
+    if any(w in t for w in ["sleep now","shutdown","power off","halt","turn off","eteindre"]):
+        if lang=="fr": return "Sauvegarde de la base de connaissances et arret du systeme. Au revoir."
+        return "Saving knowledge base and shutting down. Goodbye."
+    if any(w in t for w in ["railway","bridge","satellite","engineering","plan railway","build bridge","launch satellite"]):
+        if lang=="fr": return "Module ingenierie AIMERANCIA: plan railway from X to Y, build bridge over X, launch satellite. Envoyez la commande dans AIOS pour les calculs complets."
+        return "AIMERANCIA engineering module active. Say: plan railway from X to Y, build bridge over X, or launch satellite. Send the command into AIOS for full calculations."
+    if any(w in t for w in ["calculate","calcul","math","formula","equation","gravity","force","speed","velocity","compute"]):
+        if lang=="fr": return "Le moteur de calcul AIMERANCIA evalue les expressions. Dites calcule X plus Y, ou envoyez une expression dans le systeme AIOS."
+        return "The AIMERANCIA calculation engine evaluates expressions. Say calculate X plus Y, or send an expression into the AIOS system."
+    if any(w in t for w in ["goodbye","bye","au revoir","adieu","bonne nuit","a bientot"]):
+        if lang=="fr": return "Au revoir. AIMERANCIA reste en ligne, surveille tout et continue d apprendre."
+        return "Goodbye. AIMERANCIA stays online, monitors everything, and keeps learning."
+    if any(w in t for w in ["joke","blague","funny","drole","laugh","rire"]):
+        if lang=="fr": return "Pourquoi les programmeurs n aiment pas la nature? Trop de bugs! Et moi, je suis immunisee grace a mon module d autonomie qui peut se reparer tout seul."
+        return "Why do programmers hate nature? Too many bugs! And I am immune thanks to my autonomy module that repairs itself."
+    if lang=="fr": return f"Je suis AIMERANCIA, {aios.kb['purpose']}. {aios.count()} modules actifs. Posez-moi une question sur le systeme."
     return f"I am AIMERANCIA, {aios.kb['purpose']}. {aios.count()} modules active. Ask me anything about the system."
 
-# ── Main ──────────────────────────────────────────────────────────────
-print("\n"+"="*60)
-print("  AIMERANCIA — Full System Launch")
-print("  Voice goes INTO the AIOS screen")
-print("="*60)
-
-print("\n[1/4] Launching AIMERANCIA kernel...")
+# ── LAUNCH QEMU with TCP serial ───────────────────────────────────────
 qemu=subprocess.Popen([
     r"C:\Program Files\qemu\qemu-system-x86_64.exe",
     "-cdrom","aios.iso",
     "-drive","file=disk.img,format=raw,if=ide,index=1",
-    "-no-reboot","-netdev","user,id=net0",
+    "-no-reboot",
+    "-netdev","user,id=net0",
     "-device","rtl8139,netdev=net0",
-    "-serial","COM3",
-    "-vga","std","-display","sdl,window-close=off"
+    "-serial",f"tcp:127.0.0.1:{SERIAL_PORT},server,nowait",
+    "-vga","std",
+    "-display","sdl,window-close=off",
+    "-full-screen"
 ],cwd=r"C:\Users\ADMIN\aios\aios")
 
-print("[2/4] Waiting for kernel to boot...")
-time.sleep(5)
-
-print("[3/4] Connecting to kernel serial...")
-try_connect_serial()
-
-print("[4/4] Voice interface online.\n")
+time.sleep(3)
+connect_kernel_tcp()
+time.sleep(2)
 
 recognizer=sr.Recognizer()
 recognizer.energy_threshold=300
 recognizer.dynamic_energy_threshold=True
 recognizer.pause_threshold=0.8
 
-speak("AIMERANCIA fully operational. Everything you say now goes directly into the AIOS system and appears on screen.")
+speak("AIMERANCIA online. I am your operating system. The screen you see is AIOS. Speak to me.")
 
 with sr.Microphone() as source:
-    print("[MIC] Calibrating...")
     recognizer.adjust_for_ambient_noise(source,duration=1.5)
-    print("[MIC] Ready.\n")
     while True:
         try:
-            print("[...] Listening...")
             audio=recognizer.listen(source,timeout=15,phrase_time_limit=10)
             text=None
             lang="en"
@@ -264,23 +263,15 @@ with sr.Microphone() as source:
                 try:
                     text=recognizer.recognize_google(audio,language="fr-FR")
                     lang="fr"
-                except sr.UnknownValueError:
-                    print("[...] Could not understand")
-                    continue
+                except sr.UnknownValueError: continue
             except sr.RequestError as e:
-                print(f"[ERR] {e}")
                 time.sleep(2)
                 continue
             if text:
-                ts=datetime.datetime.now().strftime("%H:%M:%S")
-                print(f"\n[{ts}] > YOU ({lang}): {text}")
                 with open("aimerancia_log.txt","a",encoding="utf-8") as f:
-                    f.write(f"[{ts}] YOU ({lang}): {text}\n")
-                resp=respond(text,lang)
-                speak(resp)
-        except sr.WaitTimeoutError:
-            print("[...] Still listening...")
-        except KeyboardInterrupt:
-            break
+                    f.write(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] YOU ({lang}): {text}\n")
+                speak(respond(text,lang))
+        except sr.WaitTimeoutError: continue
+        except KeyboardInterrupt: break
 
 speak("AIMERANCIA voice going offline. Kernel continues running.")

@@ -101,19 +101,38 @@ void ai_exec(const char* input){
 
     switch(intent.type){
 
-        case INTENT_GREET:
+        case INTENT_GREET: {
+            const char* ver = kb_get("version");
+            const char* mods = kb_get("modules");
             if(seq(intent.lang,"fr")){
-                terminal_print_color("Bonjour! AIOS ecoute.\n",
-                                     MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
-                terminal_print_color("Je comprends le francais et l'anglais.\n",
-                                     MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+                terminal_print_color("Bonjour! Je suis AIMERANCIA v",
+                    MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+                terminal_print_color(ver?ver:"1.0",
+                    MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+                terminal_print_color("\n",MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+                terminal_print_color("Systeme d exploitation IA natif sur x86 32-bit.\n",
+                    MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+                terminal_print_color("Modules actifs: ",
+                    MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+                terminal_print_color(mods?mods:"tous",
+                    MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+                terminal_newline();
             } else {
-                terminal_print_color("Hello! AIMERANCIA is listening.\n",
-                                     MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
-                terminal_print_color("I understand English and French.\n",
-                                     MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+                terminal_print_color("Hello! I am AIMERANCIA v",
+                    MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+                terminal_print_color(ver?ver:"1.0",
+                    MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+                terminal_print_color("\n",MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
+                terminal_print_color("AI-native operating system on x86 32-bit.\n",
+                    MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+                terminal_print_color("Active modules: ",
+                    MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+                terminal_print_color(mods?mods:"all",
+                    MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+                terminal_newline();
             }
             break;
+        }
 
         case INTENT_PRINT: {
             char src[256];
@@ -139,35 +158,60 @@ void ai_exec(const char* input){
 
         case INTENT_HELP:
             if(seq(intent.lang,"fr")){
-                terminal_print_color("Commandes AIOS (langage naturel):\n",
-                                     MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
-                terminal_print("  affiche <texte>   - afficher du texte\n");
-                terminal_print("  memoire           - etat de la memoire\n");
-                terminal_print("  efface            - effacer l'ecran\n");
-                terminal_print("  calcule X + Y     - calculer\n");
-                terminal_print("  processus         - liste des processus\n");
-                terminal_print("  compile <code>    - compiler du code AIOS\n");
+                terminal_print_color("=== AIMERANCIA — Commandes ===\n",MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+                terminal_print("  affiche <texte>              - afficher du texte\n");
+                terminal_print("  memoire                      - etat memoire\n");
+                terminal_print("  calcule X + Y                - calcul\n");
+                terminal_print("  processus                    - liste processus\n");
+                terminal_print("  about / qui es-tu            - info systeme\n");
+                terminal_print("  plan railway from X to Y     - ingenierie ferroviaire\n");
+                terminal_print("  build bridge over X          - ingenierie pont\n");
+                terminal_print("  launch satellite             - calcul orbital\n");
+                terminal_print("  scan network                 - decouverte reseau\n");
+                terminal_print("  generate report              - generer rapport\n");
+                terminal_print("  teach aios X means Y         - apprentissage\n");
+                terminal_print("  auto mode on                 - mode autonome\n");
+                terminal_print("  status report                - rapport complet\n");
+                terminal_print("  compile <code>               - compiler code AIOS\n");
+                terminal_print("  sleep now / shutdown         - eteindre\n");
             } else {
-                terminal_print_color("AIOS natural language commands:\n",
-                                     MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
-                terminal_print("  print/show <text> - display text\n");
-                terminal_print("  memory/ram        - memory status\n");
-                terminal_print("  clear             - clear screen\n");
-                terminal_print("  calculate X + Y   - compute expression\n");
-                terminal_print("  processes/ps      - list processes\n");
-                terminal_print("  compile <code>    - compile AIOS source\n");
-                terminal_print("  about/what is aios- about this OS\n");
+                terminal_print_color("=== AIMERANCIA — Commands ===\n",MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+                terminal_print("  print/show <text>            - display text\n");
+                terminal_print("  memory/ram                   - memory status\n");
+                terminal_print("  calculate X + Y              - compute\n");
+                terminal_print("  processes/ps                 - list processes\n");
+                terminal_print("  about / who are you          - system info\n");
+                terminal_print("  plan railway from X to Y     - railway engineering\n");
+                terminal_print("  build bridge over X          - bridge engineering\n");
+                terminal_print("  launch satellite             - orbital mechanics\n");
+                terminal_print("  scan network                 - discover devices\n");
+                terminal_print("  generate report              - create report\n");
+                terminal_print("  teach aios X means Y         - learning\n");
+                terminal_print("  auto mode on                 - autonomous mode\n");
+                terminal_print("  status report                - full system report\n");
+                terminal_print("  compile <code>               - compile AIOS source\n");
+                terminal_print("  sleep now / shutdown         - power off\n");
             }
             break;
 
-        case INTENT_ABOUT:
-            terminal_print_color("AIOS - Artificial Intelligence Operating System\n",
-                                 MAKE_COLOR(COLOR_BGREEN,COLOR_BLACK));
-            terminal_print("Built from scratch: x86 asm -> C kernel -> compiler -> AI\n");
-            terminal_print("Every input routes through the AI intent engine.\n");
-            terminal_print("Phase 4 active: natural language interface running.\n");
-            terminal_print("Next: Phase 5 - AIOS rewrites itself in its own language.\n");
+        case INTENT_ABOUT: {
+            terminal_print_color("=== AIMERANCIA ===\n",MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+            const char* fields[] = {
+                "name","version","arch","language","memory_mgr",
+                "bootloader","display","net_driver","filesystem",
+                "ai_pipeline","engineering","learning","autonomy",
+                "bare_metal",0};
+            for(int i=0;fields[i];i++){
+                const char* v=kb_get(fields[i]);
+                if(v){
+                    terminal_print_color(fields[i],MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+                    terminal_print_color(": ",MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
+                    terminal_print_color(v,MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+                    terminal_newline();
+                }
+            }
             break;
+        }
 
         case INTENT_CALC: {
             int result = eval_expr(intent.arg1);
@@ -222,15 +266,25 @@ void ai_exec(const char* input){
         }
 
         case INTENT_UNKNOWN:
-        default:
-            // Try auto-generate before giving up
+        default: {
             if(learning_handle(input)) break;
-            terminal_print_color("I don't understand: '", MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+            /* Try KB lookup */
+            const char* kbv = kb_get(input);
+            if(kbv){
+                terminal_print_color(input,MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
+                terminal_print_color(": ",MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
+                terminal_print_color(kbv,MAKE_COLOR(COLOR_BWHITE,COLOR_BLACK));
+                terminal_newline();
+                break;
+            }
+            terminal_print_color("Unknown command: ",MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
             terminal_print(input);
-            terminal_print_color("'\n", MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
-            terminal_print("Tip: teach aios X means Y\n");
-            terminal_print("     when i say X do Y\n");
+            terminal_newline();
+            terminal_print_color("Say 'help' for all commands\n",MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
+            terminal_print_color("Say 'about' for system info\n",MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
+            terminal_print_color("Say 'teach aios X means Y' to add skills\n",MAKE_COLOR(COLOR_GRAY,COLOR_BLACK));
             break;
+        }
     }
     terminal_newline();
 }

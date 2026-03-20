@@ -235,8 +235,11 @@ void learning_save(){
 void learning_load(){
     const char* cnt = kb_get("_skill_count");
     if(!cnt) return;
+    /* Guard against corrupt disk data */
+    if(cnt[0]<'0'||cnt[0]>'9') return;
+    if(cnt[1]<'0'||cnt[1]>'9') return;
     int count = (cnt[0]-'0')*10+(cnt[1]-'0');
-    if(count>MAX_SKILLS) count=MAX_SKILLS;
+    if(count<0||count>MAX_SKILLS) count=0;
 
     for(int i=0;i<count;i++){
         char key[32];
@@ -246,7 +249,7 @@ void learning_load(){
         const char* name = kb_get(key);
         key[7]='c'; key[8]=0;
         const char* code = kb_get(key);
-        if(name&&code){
+        if(name&&code&&name[0]&&code[0]){
             scopy(skill_table[i].name,name,SKILL_NAME_LEN);
             scopy(skill_table[i].code,code,SKILL_CODE_LEN);
             skill_table[i].hits=0;

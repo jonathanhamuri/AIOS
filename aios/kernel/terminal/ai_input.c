@@ -126,6 +126,25 @@ void ai_process_input(const char* input) {
     while (*input == ' ') input++;
     if (!*input) { terminal_render_prompt(); return; }
 
+    // ── SHUTDOWN / SLEEP ─────────────────────────────────────────────
+    if(str_starts(input,"sleep now")||str_starts(input,"shutdown")||
+       str_starts(input,"power off")||str_starts(input,"halt")||
+       str_starts(input,"turn off")||str_starts(input,"eteindre")){
+        terminal_print_color("\n[AIMERANCIA] Saving knowledge base...\n",
+            MAKE_COLOR(COLOR_BYELLOW,COLOR_BLACK));
+        extern void kbfs_save(void);
+        kbfs_save();
+        terminal_print_color("[AIMERANCIA] System going offline. Goodbye.\n",
+            MAKE_COLOR(COLOR_BRED,COLOR_BLACK));
+        /* ACPI shutdown via port 0x604 (QEMU) */
+        __asm__ volatile("outw %0,%1"::"a"((unsigned short)0x2000),
+                                       "Nd"((unsigned short)0x604));
+        /* Fallback: disable interrupts and halt */
+        __asm__ volatile("cli");
+        __asm__ volatile("hlt");
+        while(1){}
+    }
+
     // Check built-in commands first
     if (str_eq(input, "help")) {
         cmd_help(0);
