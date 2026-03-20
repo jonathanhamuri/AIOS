@@ -1,6 +1,7 @@
 #include "autonomy/autonomy.h"
 #include "../apps/apps.h"
 #include "documents/docgen.h"
+#include "documents/doc_page.h"
 #include "../net/discovery/discovery.h"
 #include "engineering/engineering.h"
 #include "learning/learning.h"
@@ -67,7 +68,7 @@ void ai_exec(const char* input){
     if(learning_handle(input)) return;
     if(engineering_handle(input)) return;
     if(discovery_handle(input)) return;
-    if(docgen_handle(input)) return;
+    if(doc_page_handle(input)) return;  /* replaces docgen */
     if(apps_handle(input)) return;
     if(autonomy_handle(input)) return;
     autonomy_observe(input);

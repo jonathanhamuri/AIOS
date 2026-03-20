@@ -16,6 +16,78 @@ for i in range(voices.Count):
 speaker.Rate = 0
 speaker.Volume = 100
 
+
+def export_document(title, body, fmt="docx"):
+    """Export AIMERANCIA document to Word or PDF on Windows."""
+    import datetime
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_title = "".join(c for c in title if c.isalnum() or c in " _-")[:40].strip()
+    filename = f"AIMERANCIA_{safe_title}_{ts}"
+
+    if fmt == "docx":
+        try:
+            from docx import Document
+            from docx.shared import Pt, RGBColor
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+            doc = Document()
+            # Title
+            title_para = doc.add_heading(title, 0)
+            title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            # Body — parse sections
+            for line in body.split("\n"):
+                line = line.strip()
+                if not line:
+                    doc.add_paragraph("")
+                    continue
+                # Detect section headers
+                if len(line) < 40 and line and line[0].isupper() and not line.endswith("."):
+                    words = line.split()
+                    upper = sum(1 for w in words if w and w[0].isupper())
+                    if upper >= len(words)*0.6:
+                        h = doc.add_heading(line, level=1)
+                        continue
+                doc.add_paragraph(line)
+            path = f"C:\\Users\\ADMIN\\aios\\aios\\{filename}.docx"
+            doc.save(path)
+            return f"Saved as Word document: {filename}.docx"
+        except ImportError:
+            return "Install python-docx: pip install python-docx"
+        except Exception as e:
+            return f"Export error: {e}"
+
+    elif fmt == "pdf":
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import cm
+            path = f"C:\\Users\\ADMIN\\aios\\aios\\{filename}.pdf"
+            doc = SimpleDocTemplate(path, pagesize=A4)
+            styles = getSampleStyleSheet()
+            story = []
+            story.append(Paragraph(title, styles['Title']))
+            story.append(Spacer(1, 0.5*cm))
+            for line in body.split("\n"):
+                line = line.strip()
+                if not line:
+                    story.append(Spacer(1, 0.3*cm))
+                    continue
+                if len(line) < 40 and line[0].isupper():
+                    story.append(Paragraph(line, styles['Heading1']))
+                else:
+                    story.append(Paragraph(line, styles['Normal']))
+            doc.build(story)
+            return f"Saved as PDF: {filename}.pdf"
+        except ImportError:
+            return "Install reportlab: pip install reportlab"
+        except Exception as e:
+            return f"PDF error: {e}"
+    return "Unknown format"
+
+# Last exported doc cache
+last_doc_title = ""
+last_doc_body  = ""
+
 def speak(text):
     with open("aimerancia_log.txt","a",encoding="utf-8") as f:
         f.write(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] AIMERANCIA: {text}\n")
@@ -212,6 +284,12 @@ def respond(raw,lang):
     if any(w in t for w in ["calculate","calcul","math","formula","equation","gravity","force","speed","velocity","compute"]):
         if lang=="fr": return "Le moteur de calcul AIMERANCIA evalue les expressions. Dites calcule X plus Y, ou envoyez une expression dans le systeme AIOS."
         return "The AIMERANCIA calculation engine evaluates expressions. Say calculate X plus Y, or send an expression into the AIOS system."
+    if any(w in t for w in ["export to word","save as word","export docx","convert to word","save word"]):
+        resp = export_document(last_doc_title or "Document", last_doc_body or "Empty document", "docx")
+        return resp
+    if any(w in t for w in ["export to pdf","save as pdf","export pdf","convert to pdf","save pdf"]):
+        resp = export_document(last_doc_title or "Document", last_doc_body or "Empty document", "pdf")
+        return resp
     if any(w in t for w in ["goodbye","bye","au revoir","adieu","bonne nuit","a bientot"]):
         if lang=="fr": return "Au revoir. AIMERANCIA reste en ligne, surveille tout et continue d apprendre."
         return "Goodbye. AIMERANCIA stays online, monitors everything, and keeps learning."
