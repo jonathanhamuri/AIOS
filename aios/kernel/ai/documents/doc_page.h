@@ -1,9 +1,9 @@
 #ifndef DOC_PAGE_H
 #define DOC_PAGE_H
 
-#define DOC_STORE_MAX   16
-#define DOC_TITLE_LEN   48
-#define DOC_BODY_LEN    2048
+#define DOC_STORE_MAX   32
+#define DOC_TITLE_LEN   64
+#define DOC_BODY_LEN    32768
 
 typedef struct {
     char title[DOC_TITLE_LEN];
@@ -30,4 +30,7 @@ int  doc_page_active(void);
 int  doc_page_handle(const char* input);
 extern int current_page;
 
+void doc_page_write_long(const char* title, const char* type,
+                            const char* topic, int pages);
+void doc_page_export_text(int index, char* out, int maxlen);
 #endif

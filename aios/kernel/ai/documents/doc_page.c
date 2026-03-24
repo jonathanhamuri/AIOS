@@ -528,25 +528,82 @@ int doc_page_handle(const char*input){
        deq(input,"create document")||deq(input,"creer document")){
         doc_page_open_editor("Untitled","Document"); return 1;
     }
-    /* Essay */
-    if(dstart(input,"write essay about ")||dstart(input,"essay about ")||
-       dstart(input,"essai sur ")||dstart(input,"redige essai")){
-        const char*t=input;
-        if(dstart(input,"write essay about "))t=input+18;
-        else if(dstart(input,"essay about "))t=input+12;
-        else if(dstart(input,"essai sur "))t=input+10;
-        doc_page_open_editor(t,"Essay");
-        fill_doc(t,'E'); doc_page_save(); render_doc(); return 1;
-    }
-    /* Report */
-    if(dstart(input,"write report")||dstart(input,"create report")||
-       dstart(input,"genere rapport")||dstart(input,"rapport sur ")){
-        const char*t="Report";
-        if(dstart(input,"write report on "))t=input+16;
-        else if(dstart(input,"write report about "))t=input+19;
-        else if(dstart(input,"rapport sur "))t=input+12;
-        doc_page_open_editor(t,"Report");
-        fill_doc(t,'R'); doc_page_save(); render_doc(); return 1;
+    /* Long document detection — parse page count */
+    {
+        int pages=5; /* default */
+        const char*ti=input;
+        /* Look for page count: "40 page", "10 pages", "a 5 page" */
+        const char*p=input;
+        while(*p){
+            if(*p>='1'&&*p<='9'){
+                int n=0;
+                while(*p>='0'&&*p<='9'){n=n*10+(*p-'0');p++;}
+                while(*p==' ')p++;
+                if(dstart(p,"page")||dstart(p,"pg")||dstart(p,"chapitre")){
+                    if(n>=1&&n<=40) pages=n;
+                }
+            }
+            p++;
+        }
+
+        /* Essay */
+        if(dstart(input,"write essay about ")||dstart(input,"essay about ")||
+           dstart(input,"essai sur ")||dstart(input,"redige essai")||
+           dstart(input,"write a ")&&(dstart(input+8,"essay")||dstart(input+10,"essay")||dstart(input+11,"essay"))){
+            const char*t=input;
+            if(dstart(input,"write essay about "))t=input+18;
+            else if(dstart(input,"essay about "))t=input+12;
+            else if(dstart(input,"essai sur "))t=input+10;
+            else if(dstart(input,"write a ")){
+                /* skip "write a N page essay about " */
+                t=input+8;
+                while(*t&&*t!=' ')t++; /* skip number/article */
+                while(*t==' ')t++;
+                if(dstart(t,"page "))t+=5;
+                if(dstart(t,"pages "))t+=6;
+                if(dstart(t,"essay about "))t+=12;
+                else if(dstart(t,"essay on "))t+=9;
+                else if(dstart(t,"essay "))t+=6;
+            }
+            doc_page_open_editor(t,"Essay");
+            doc_page_write_long(t,"Essay",t,pages);
+            doc_page_save(); render_doc(); return 1;
+        }
+        /* Report */
+        if(dstart(input,"write report")||dstart(input,"create report")||
+           dstart(input,"genere rapport")||dstart(input,"rapport sur ")||
+           dstart(input,"write a report")){
+            const char*t="Report";
+            if(dstart(input,"write report on "))t=input+16;
+            else if(dstart(input,"write report about "))t=input+19;
+            else if(dstart(input,"rapport sur "))t=input+12;
+            else if(dstart(input,"write a report on "))t=input+18;
+            else if(dstart(input,"write a report about "))t=input+21;
+            doc_page_open_editor(t,"Report");
+            doc_page_write_long(t,"Report",t,pages);
+            doc_page_save(); render_doc(); return 1;
+        }
+        /* Assignment */
+        if(dstart(input,"write assignment")||dstart(input,"assignment on ")||
+           dstart(input,"assignment about ")||dstart(input,"write a assignment")){
+            const char*t="Assignment";
+            if(dstart(input,"assignment on "))t=input+14;
+            else if(dstart(input,"assignment about "))t=input+17;
+            else if(dstart(input,"write assignment on "))t=input+20;
+            doc_page_open_editor(t,"Assignment");
+            doc_page_write_long(t,"Assignment",t,pages);
+            doc_page_save(); render_doc(); return 1;
+        }
+        /* Research paper */
+        if(dstart(input,"write research paper")||dstart(input,"research paper on ")||
+           dstart(input,"research paper about ")){
+            const char*t="Research";
+            if(dstart(input,"research paper on "))t=input+18;
+            else if(dstart(input,"research paper about "))t=input+21;
+            doc_page_open_editor(t,"Research Paper");
+            doc_page_write_long(t,"Research Paper",t,pages);
+            doc_page_save(); render_doc(); return 1;
+        }
     }
     /* Letter */
     if(dstart(input,"write letter")||dstart(input,"compose letter")||
