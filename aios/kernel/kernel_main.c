@@ -81,6 +81,7 @@ void kernel_main() {
     if(1){
         if(!fb_active) vga_init();
         aios_ui_init();
+        space_ui_init();
     } else {
         fb_shell_init();
     }
@@ -107,7 +108,8 @@ void kernel_main() {
             scheduler_tick();
             scheduler_tick_check((int)timer_ticks_bss);
             autonomy_auto_tick((int)timer_ticks_bss);
-            if(aios_ui_active) aios_ui_tick();
+            if(space_mode) space_ui_tick();
+            else if(aios_ui_active) aios_ui_tick();
             /* Poll serial for voice commands from bridge */
             {
                 static char vbuf[128];
@@ -133,8 +135,6 @@ void kernel_main() {
                     }
                 }
             }
-            if(aios_ui_active) aios_ui_tick();
-            if(aios_ui_active) aios_ui_tick();
         }
         continue;
     }

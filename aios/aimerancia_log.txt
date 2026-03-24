@@ -262,3 +262,10 @@
 [00:16:39] AIMERANCIA: AIMERANCIA online. I am your operating system. The screen you see is AIOS. Speak to me.
 [00:16:53] YOU (en): sleep now
 [00:16:55] AIMERANCIA: Saving knowledge base and shutting down. Goodbye.
+[00:20:11] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.
+[00:20:30] AIMERANCIA: AIMERANCIA online. I am your operating system. The screen you see is AIOS. Speak to me.
+[00:20:44] YOU (en): create document
+[00:20:46] AIMERANCIA: I am AIMERANCIA, AI-native autonomous operating system. 9 modules active. Ask me anything about the system.
+[00:21:04] YOU (en): sleep now
+[00:21:06] AIMERANCIA: Saving knowledge base and shutting down. Goodbye.
+[00:21:15] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.
