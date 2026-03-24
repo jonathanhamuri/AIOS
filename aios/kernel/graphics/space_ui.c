@@ -2,494 +2,512 @@
 #include "space_ui.h"
 #include "framebuffer.h"
 #include "../terminal/terminal.h"
-#include "../ai/knowledge/kb.h"
 #include "../ai/documents/doc_page.h"
 #include "../mm/pmm.h"
 
 int space_mode = 0;
 
-/* ── Trig tables (scaled x1000) ── */
-static int cos_t[36] = {
-    1000, 985, 940, 866, 766, 643, 500, 342, 174, 0,
-    -174,-342,-500,-643,-766,-866,-940,-985,-1000,-985,
-    -940,-866,-766,-643,-500,-342,-174, 0, 174, 342,
-     500, 643, 766, 866, 940, 985
-};
-static int sin_t[36] = {
-    0, 174, 342, 500, 643, 766, 866, 940, 985, 1000,
-    985, 940, 866, 766, 643, 500, 342, 174, 0,-174,
-   -342,-500,-643,-766,-866,-940,-985,-1000,-985,-940,
-   -866,-766,-643,-500,-342,-174
-};
-static int isin(int a){ return sin_t[((a%360)+360)%360/10]; }
-static int icos(int a){ return cos_t[((a%360)+360)%360/10]; }
+/* ══════════════════════════════════════════════════════
+   FIXED-POINT 3D ENGINE
+   All coords * 1024 (10-bit fraction)
+   ══════════════════════════════════════════════════════ */
+#define FP   1024
+#define FP2  (FP*FP)
 
-/* ── Colors ── */
-#define BLACK    0x00000005
-#define DEEPBLUE 0x00000818
-#define SUN_CORE 0x00FFFFFF
-#define SUN_MID  0x00FFD700
-#define SUN_OUT  0x00FF8800
-#define SUN_ATM  0x00441100
-#define STARFLD  0x00AAAAAA
-#define DIMSTAR  0x00333333
-#define GOLD     0x00B87333
-#define LGOLD    0x00D4A017
-#define YGOLD    0x00FFD700
-#define GREEN    0x0000CC44
-#define CYAN     0x0000CCCC
-#define BLUE     0x000066FF
-#define RED      0x00CC2222
-#define PURPLE   0x00882288
-#define ORANGE   0x00CC6600
-#define WHITE    0x00FFFFFF
-#define GRAY     0x00444444
-#define DGRAY    0x00222222
-
-/* ── Planet definitions ── */
-typedef struct {
-    const char* name;
-    const char* label;
-    int   orbit_r;    /* orbit radius */
-    int   size;       /* planet radius */
-    unsigned int col1, col2, col3; /* colors */
-    int   angle;      /* current orbital angle */
-    int   speed;      /* degrees per tick /10 */
-    const char* desc;
-} planet_t;
-
-static planet_t planets[7] = {
-    {"Documents", "DOCS",    160, 14,
-     0x00DDAA44, 0x00AA7722, 0x00886611, 0,   8,
-     "Document editor\nEssays & Reports"},
-    {"Learning",  "LEARN",   230, 11,
-     0x0044AA66, 0x002277AA, 0x001144AA, 60,  6,
-     "Knowledge base\nSkill learning"},
-    {"Network",   "NET",     300, 13,
-     0x000077CC, 0x002244AA, 0x000033AA, 120, 5,
-     "RTL8139 driver\nDevice discovery"},
-    {"Engineering","ENG",    370, 12,
-     0x00CC6600, 0x00AA4400, 0x00882200, 180, 4,
-     "Railway & Bridge\nSatellite launch"},
-    {"Autonomy",  "AUTO",    200, 10,
-     0x00AA2288, 0x00882266, 0x00661144, 240, 7,
-     "Self-repair\nSystem guardian"},
-    {"Code",      "CODE",    270, 11,
-     0x0000AA88, 0x00008866, 0x00006644, 300, 5,
-     "AI code gen\nNative compiler"},
-    {"Scheduler", "SCHED",   340, 10,
-     0x00888800, 0x00666600, 0x00444400, 30,  3,
-     "Task queue\nBackground jobs"},
-};
-
-/* ── State ── */
-static unsigned int W, H, CX, CY;
-static int tick = 0;
-static int sun_pulse = 0, sun_pdir = 1;
-static int sun_speaking = 0;
-static int travel_target = PLANET_NONE;
-static int travel_progress = 0; /* 0-100 */
-static int current_planet = PLANET_NONE;
-static int returning = 0;
-static char space_status[32] = "LISTENING...";
-
-/* Stars */
-#define NSTARS 120
-static unsigned short star_x[NSTARS];
-static unsigned short star_y[NSTARS];
-static unsigned char  star_b[NSTARS]; /* brightness 0-3 */
-
-static void init_stars(void){
-    /* Deterministic star field */
-    unsigned int seed = 0xDEADBEEF;
-    for(int i=0;i<NSTARS;i++){
-        seed = seed*1664525u + 1013904223u;
-        star_x[i] = (unsigned short)(seed % W);
-        seed = seed*1664525u + 1013904223u;
-        star_y[i] = (unsigned short)(seed % H);
-        star_b[i] = (unsigned char)(seed % 4);
+/* Trig table 0-359 deg, scaled x1024 */
+static short sin_t[360];
+static short cos_t[360];
+static void init_trig(void){
+    /* Pre-baked 32-entry then interpolated would be better
+       but for boot simplicity we use a 36-entry table + lerp */
+    static const short s36[36]={
+        0,178,342,512,656,777,882,954,1000,1022,
+        1022,1000,954,882,777,656,512,342,178,0,
+        -178,-342,-512,-656,-777,-882,-954,-1000,-1022,-1022,
+        -1000,-954,-882,-777,-656,-512
+    };
+    for(int i=0;i<360;i++){
+        int idx=i/10, frac=i%10;
+        int a=s36[idx], b=s36[(idx+1)%36];
+        sin_t[i]=(short)(a+(b-a)*frac/10);
+        /* cos(i) = sin(i+90) */
+        cos_t[i]=(short)(s36[((idx+9)%36)] + (s36[((idx+10)%36)]-s36[((idx+9)%36)])*frac/10);
     }
 }
+#define ISIN(a) sin_t[((a)%360+360)%360]
+#define ICOS(a) cos_t[((a)%360+360)%360]
 
-/* ── Drawing ── */
-static void px(int x,int y,unsigned int c){
+/* ── Camera ── */
+static int cam_angX = 25;   /* degrees, tilt down */
+static int cam_angY = 0;    /* degrees, auto-rotate */
+static int cam_fov  = 480;  /* perspective strength */
+static int cam_dist = 0;    /* extra z push */
+
+/* 3D → 2D projection (coords in world units, not FP) */
+typedef struct { int x, y, depth; int valid; } Proj;
+static unsigned int W, H;
+
+static Proj project3d(int wx, int wy, int wz){
+    Proj p; p.valid=0;
+    /* Rotate Y */
+    int cy=ICOS(cam_angY), sy=ISIN(cam_angY);
+    int rx = (wx*cy - wz*sy)/FP;
+    int rz = (wx*sy + wz*cy)/FP;
+    /* Rotate X */
+    int cx2=ICOS(cam_angX), sx2=ISIN(cam_angX);
+    int ry2= (wy*cx2 - rz*sx2)/FP;
+    int rz2= (wy*sx2 + rz*cx2)/FP;
+    int dz = cam_fov + rz2 + 380;
+    if(dz < 10) return p;
+    p.x = (int)W/2 + rx * cam_fov / dz;
+    p.y = (int)H/2 + ry2 * cam_fov / dz;
+    p.depth = rz2;
+    p.valid = 1;
+    return p;
+}
+
+/* ── Colors (0x00RRGGBB) ── */
+#define BLACK    0x00000000
+#define WHITE    0x00FFFFFF
+#define YGOLD    0x00FFD700
+#define LGOLD    0x00D4A017
+#define GOLD     0x00B87333
+#define GREEN    0x0000CC44
+#define DGRAY    0x00111111
+#define BGDARK   0x00000508
+
+/* ── Primitives ── */
+static void px2(int x,int y,unsigned int c){
     if(x<0||y<0||(unsigned)x>=W||(unsigned)y>=H)return;
     fb_putpixel(x,y,c);
 }
 static void hl(int x1,int x2,int y,unsigned int c){
-    for(int x=x1;x<=x2;x++)px(x,y,c);
+    if(x1>x2){int t=x1;x1=x2;x2=t;}
+    for(int x=x1;x<=x2;x++) px2(x,y,c);
 }
+/* Filled circle */
 static void fc(int cx,int cy,int r,unsigned int c){
-    for(int y=-r;y<=r;y++)
-        for(int x=-r;x<=r;x++)
-            if(x*x+y*y<=r*r)px(cx+x,cy+y,c);
+    for(int dy=-r;dy<=r;dy++)
+        for(int dx=-r;dx<=r;dx++)
+            if(dx*dx+dy*dy<=r*r) px2(cx+dx,cy+dy,c);
 }
+/* Ring */
 static void ring(int cx,int cy,int r,int t,unsigned int c){
     int r2=(r+t)*(r+t);
-    for(int y=-(r+t);y<=(r+t);y++)
-        for(int x=-(r+t);x<=(r+t);x++){
-            int d=x*x+y*y;
-            if(d>=r*r&&d<=r2)px(cx+x,cy+y,c);
+    for(int dy=-(r+t);dy<=(r+t);dy++)
+        for(int dx=-(r+t);dx<=(r+t);dx++){
+            int d=dx*dx+dy*dy;
+            if(d>=r*r&&d<=r2) px2(cx+dx,cy+dy,c);
         }
 }
-static void orbit_ring(int cx,int cy,int r,unsigned int c){
-    /* Draw elliptical orbit */
-    for(int a=0;a<360;a+=3){
-        int ox=cx+r*icos(a)/1000;
-        int oy=cy+r*isin(a)/2000; /* flatten to ellipse */
-        px(ox,oy,c);
-    }
+
+/* ── Blend two colours ── */
+static unsigned int blend(unsigned int a, unsigned int b, int t){
+    /* t: 0=all a, 256=all b */
+    int ar=(a>>16)&0xFF, ag=(a>>8)&0xFF, ab2=a&0xFF;
+    int br=(b>>16)&0xFF, bg=(b>>8)&0xFF, bb2=b&0xFF;
+    int r=ar+(br-ar)*t/256;
+    int g=ag+(bg-ag)*t/256;
+    int bv=ab2+(bb2-ab2)*t/256;
+    return (unsigned int)((r<<16)|(g<<8)|bv);
 }
 
-/* ── Draw sun ── */
-static void draw_sun(int x,int y,int size,int speaking){
-    int p = sun_pulse;
-    int sp = speaking ? p*3 : 0;
-
-    /* Outer atmosphere glow */
-    fc(x,y,size+18+p, 0x00110400);
-    fc(x,y,size+12+p, 0x00220800);
-    fc(x,y,size+8+p+sp, SUN_ATM);
-
-    /* Corona rays */
-    for(int i=0;i<12;i++){
-        int a=(i*30+tick*2)%360;
-        int r1=size+6; int r2=size+14+p+(speaking?p*2:0);
-        int x1=x+r1*icos(a)/1000, y1=y+r1*isin(a)/1000;
-        int x2=x+r2*icos(a)/1000, y2=y+r2*isin(a)/1000;
-        /* Draw ray as line of pixels */
-        int dx=x2-x1, dy=y2-y1;
-        int steps=r2-r1; if(steps<1)steps=1;
-        for(int s=0;s<steps;s++){
-            int px2=x1+dx*s/steps;
-            int py2=y1+dy*s/steps;
-            px(px2,py2,0x00FF6600);
+/* ── 3D Sphere with shading ── */
+static void draw_sphere3d(int cx, int cy, int r,
+                           unsigned int cLight, unsigned int cMid, unsigned int cDark){
+    if(r<2) return;
+    int r2=r*r;
+    /* Light direction: top-left */
+    for(int dy=-r;dy<=r;dy++){
+        for(int dx=-r;dx<=r;dx++){
+            int d2=dx*dx+dy*dy;
+            if(d2>r2) continue;
+            /* Normal dot light (simplified) */
+            int dz2 = r2 - d2; /* dz^2 */
+            /* Approximate dz */
+            int dz=0;
+            {int v=dz2,s=1;while(s*s<v)s++;dz=s;}
+            /* Light = top-left = (-1,-1,1) normalized */
+            /* dot = (-dx - dy + dz) / r / sqrt3  */
+            int dot = (-dx - dy + dz);
+            /* Map to 0-256 */
+            int maxdot = r + r + r;
+            int lit = (dot + maxdot)*256/(2*maxdot);
+            if(lit<0)lit=0; if(lit>255)lit=255;
+            unsigned int col;
+            if(lit>180)      col=blend(cLight,WHITE, (lit-180)*4);
+            else if(lit>80)  col=blend(cMid,  cLight,(lit-80)*256/100);
+            else             col=blend(cDark, cMid,  lit*256/80);
+            px2(cx+dx,cy+dy,col);
         }
     }
-
-    /* Sun layers */
-    fc(x,y,size+4+p,  SUN_OUT);
-    fc(x,y,size,      0x00FF9900);
-    fc(x,y,size-4,    SUN_MID);
-    fc(x,y,size-8,    0x00FFEE00);
-    fc(x,y,size-12,   SUN_CORE);
-    if(size>14) fc(x,y,size-15, WHITE);
-
-    /* Crosshair */
-    hl(x-size+4,x+size-4,y,0x44FFFFFF);
-    for(int i=y-size+4;i<=y+size-4;i++) px(x,i,0x44FFFFFF);
-
-    /* Speaking indicator */
-    if(speaking){
-        ring(x,y,size+20+p,2,YGOLD);
-        ring(x,y,size+26+p,2,LGOLD);
-    }
 }
 
-/* ── Draw planet ── */
-static int dlen(const char*s){int n=0;while(*s++)n++;return n;}
-static void draw_planet(int px2,int py2,planet_t*p,int highlighted){
-    /* Shadow side */
-    fc(px2+p->size/4, py2+p->size/4, p->size, 0x00111111);
-    /* Planet body */
-    fc(px2, py2, p->size, p->col1);
-    fc(px2-p->size/4, py2-p->size/4, p->size*3/4, p->col2);
-    fc(px2-p->size/3, py2-p->size/3, p->size/2, p->col3);
-
-    /* Highlight */
-    if(highlighted){
-        ring(px2,py2,p->size+2,2,YGOLD);
-        ring(px2,py2,p->size+6,1,GOLD);
-    }
-
-    /* Label */
-    int lx=px2-dlen(p->label)*4;
-    int ly=py2+p->size+5;
-    if(ly<(int)H-10)
-        fb_drawstring(lx,ly,p->label,highlighted?YGOLD:LGOLD,BLACK);
-}
-
-
-/* ── Draw mini-sun (corner when on planet) ── */
-static void draw_mini_sun(void){
-    int sz=18;
-    int mx=sz+12, my=sz+12;
-    /* Background circle */
-    fc(mx,my,sz+8,0x00110400);
-    draw_sun(mx,my,sz,sun_speaking);
-    /* AIMERANCIA label */
-    fb_drawstring(4,sz*2+16,"AIMERANCIA",LGOLD,BLACK);
-    /* Status */
-    fb_drawstring(4,sz*2+26,space_status,GREEN,BLACK);
-}
-
-/* ── Planet surface (when traveling there) ── */
-static void draw_planet_surface(int pid){
-    planet_t*p=&planets[pid];
-    /* Background — planet color gradient */
-    fb_rectfill(0,0,W,H,BLACK);
-    /* Horizon glow */
-    for(int i=0;i<30;i++){
-        unsigned int col=((unsigned int)(i*4)<<16)|
-                         ((unsigned int)(i*2)<<8)|0x00000010;
-        hl(0,W-1,H-30+i,col);
-    }
-    /* Planet surface lines */
-    for(int i=0;i<8;i++){
-        hl(0,W-1,H-80+i*8,
-           i%2==0?p->col1:p->col2);
-    }
-    /* Mini sun top-left */
-    draw_mini_sun();
-    /* Planet name large */
-    fb_drawstring(W/2-dlen(p->name)*4,40,p->name,YGOLD,BLACK);
-    hl(W/2-60,W/2+60,52,GOLD);
-}
-
-/* ── Full solar system view ── */
-static void draw_solar_system(void){
-    /* Space background */
-    fb_rectfill(0,0,W,H,BLACK);
-
-    /* Stars */
+/* ── Stars ── */
+#define NSTARS 180
+static short sx3[NSTARS], sy3[NSTARS], sz3[NSTARS];
+static unsigned char sbright[NSTARS];
+static void init_stars(void){
+    unsigned int seed=0xC0FFEE;
     for(int i=0;i<NSTARS;i++){
-        unsigned int sc=(star_b[i]==0)?DIMSTAR:
-                        (star_b[i]==1)?0x00555555:
-                        (star_b[i]==2)?0x00888888:STARFLD;
-        /* Twinkle */
-        if((tick+i*7)%40<2) sc=WHITE;
-        px(star_x[i],star_y[i],sc);
+        seed=seed*1664525u+1013904223u;
+        int a=(int)(seed%360); int b=(int)((seed>>8)%360);
+        int r=750+(int)((seed>>16)%150);
+        sx3[i]=(short)(r*ICOS(a)/FP*ICOS(b)/FP);
+        sy3[i]=(short)(r*ISIN(b)/FP);
+        sz3[i]=(short)(r*ISIN(a)/FP*ICOS(b)/FP);
+        sbright[i]=(unsigned char)((seed>>24)%4);
     }
+}
+
+/* ── Sun pulse ── */
+static int sun_pulse=0, sun_pdir=1, sun_speaking=0;
+
+/* ── Draw 3D sun ── */
+static void draw_sun3d(int cx, int cy, int r){
+    int p=sun_pulse/2;
+    /* Atmosphere layers */
+    for(int i=4;i>=1;i--){
+        int gr=r+8+i*6+p;
+        int alpha=i*3; /* fake alpha by darkening */
+        unsigned int gc=blend(0x00441100,BLACK,220-alpha*10);
+        fc(cx,cy,gr,gc);
+    }
+    /* Corona rays */
+    for(int i=0;i<16;i++){
+        int a=(i*22+sun_pulse*3)%360;
+        int r1=r+3, r2=r+10+p+(sun_speaking?p:0);
+        int dx=ICOS(a), dz=ISIN(a);
+        for(int s=r1;s<r2;s++){
+            int xi=cx+s*dx/FP, yi=cy+s*dz/FP;
+            unsigned int cc=blend(0x00FF6600,0x00FF2200,(r2-s)*256/(r2-r1));
+            px2(xi,yi,cc);
+        }
+    }
+    /* Sun sphere layers */
+    draw_sphere3d(cx,cy,r,0x00FFFFAA,0x00FFD700,0x00FF6600);
+    /* Bright core */
+    fc(cx,cy,r/3,WHITE);
+    /* Speaking rings */
+    if(sun_speaking){
+        ring(cx,cy,r+14+p,2,YGOLD);
+        ring(cx,cy,r+20+p,1,LGOLD);
+    }
+}
+
+/* ── Orbit ring 3D ── */
+static void draw_orbit3d(int orb, int tilt_deg){
+    unsigned int c=0x00111122;
+    for(int a=0;a<360;a+=3){
+        int wx=orb*ICOS(a)/FP;
+        int wz=orb*ISIN(a)/FP;
+        int wy=orb*ISIN(a)/FP*ISIN(tilt_deg)/FP;
+        Proj p=project3d(wx,wy,wz);
+        if(p.valid) px2(p.x,p.y,c);
+        /* Dashed: skip every other */
+        a++;
+    }
+}
+
+/* ── Planet definitions ── */
+typedef struct {
+    const char* name; const char* label;
+    int orbit; int size;
+    unsigned int cLight, cMid, cDark;
+    int angle; int speed; /* speed in 0.1 deg/tick */
+    int tilt;  /* orbit tilt degrees */
+} planet_t;
+
+static planet_t planets[7]={
+    {"Documents","DOCS",  140,12,0x00FFCC66,0x00CC8833,0x00664411,  0,7, 12},
+    {"Learning", "LEARN", 190,9, 0x0066CC88,0x003388AA,0x00115588, 60,5,-10},
+    {"Network",  "NET",   245,10,0x0033AAEE,0x001166BB,0x00003388,120,4,  7},
+    {"Engineering","ENG", 190,10,0x00EE8833,0x00BB5511,0x00662200,210,6, 18},
+    {"Autonomy", "AUTO",  140,8, 0x00CC44AA,0x00882277,0x00440033,290,8,-14},
+    {"Code",     "CODE",  245,9, 0x0022CCAA,0x00119977,0x00005544,300,3,  4},
+    {"Scheduler","SCHED", 215,8, 0x00AAAA22,0x00777700,0x00333300, 30,2, 10},
+};
+
+/* ── Travel/view state ── */
+static int tick=0;
+static int travel_target=PLANET_NONE;
+static int travel_progress=0;
+static int current_planet=PLANET_NONE;
+static char space_status[32]="LISTENING...";
+
+/* String length */
+static int dlen(const char*s){int n=0;while(*s++)n++;return n;}
+
+/* ── Draw stars ── */
+static void draw_stars(int warp){
+    for(int i=0;i<NSTARS;i++){
+        unsigned int c=(sbright[i]==0)?0x00222222:
+                       (sbright[i]==1)?0x00555555:
+                       (sbright[i]==2)?0x00888888:0x00AAAAAA;
+        if((tick+i*7)%60<2) c=WHITE;
+        Proj p=project3d(sx3[i],sy3[i],sz3[i]);
+        if(!p.valid) continue;
+        if(warp && warp>20){
+            /* Stretch stars */
+            int dx=(p.x-(int)W/2)*warp/600;
+            int dy=(p.y-(int)H/2)*warp/1200;
+            hl(p.x,p.x+dx,p.y,c);
+            if(dy) for(int j=0;j<dy;j++) px2(p.x,p.y+j,c);
+        } else {
+            px2(p.x,p.y,c);
+        }
+    }
+}
+
+/* ── Depth-sort helper ── */
+typedef struct { int idx; int depth; } DepthEntry;
+static DepthEntry depth_buf[8]; /* 7 planets + sun */
+static void sort_depth(void){
+    /* Insertion sort (tiny array) */
+    for(int i=1;i<8;i++){
+        DepthEntry key=depth_buf[i]; int j=i-1;
+        while(j>=0 && depth_buf[j].depth > key.depth){
+            depth_buf[j+1]=depth_buf[j]; j--;
+        }
+        depth_buf[j+1]=key;
+    }
+}
+
+/* ── Main solar system draw ── */
+static void draw_solar_system(void){
+    fb_rectfill(0,0,W,H,BGDARK);
+    draw_stars(0);
 
     /* Orbit rings */
+    for(int i=0;i<7;i++) draw_orbit3d(planets[i].orbit,planets[i].tilt);
+
+    /* Compute depths for sun + planets */
+    Proj sp=project3d(0,0,0);
+    depth_buf[0].idx=-1; depth_buf[0].depth=sp.valid?sp.depth:0;
     for(int i=0;i<7;i++){
-        orbit_ring(CX,CY,planets[i].orbit_r,0x00111118);
-    }
-
-    /* Draw planets */
-    for(int i=6;i>=0;i--){
         int a=planets[i].angle;
-        int ox=CX+planets[i].orbit_r*icos(a)/1000;
-        int oy=CY+planets[i].orbit_r*isin(a)/2000; /* 2:1 perspective */
-        draw_planet(ox,oy,&planets[i],i==travel_target);
+        int wx=planets[i].orbit*ICOS(a)/FP;
+        int wz=planets[i].orbit*ISIN(a)/FP;
+        int wy=planets[i].orbit*ISIN(a)/FP*ISIN(planets[i].tilt)/FP;
+        Proj pp=project3d(wx,wy,wz);
+        depth_buf[i+1].idx=i;
+        depth_buf[i+1].depth=pp.valid?pp.depth:0;
     }
+    sort_depth();
 
-    /* Sun (on top of everything) */
-    draw_sun(CX,CY,32,sun_speaking);
-
-    /* AIMERANCIA label under sun */
-    fb_drawstring(CX-36,CY+52,"AIMERANCIA",YGOLD,BLACK);
-    fb_drawstring(CX-28,CY+63,space_status,GREEN,BLACK);
+    /* Draw far → near */
+    for(int d=0;d<8;d++){
+        int idx=depth_buf[d].idx;
+        if(idx==-1){
+            /* Sun */
+            if(sp.valid){
+                int sr=32; /* base radius */
+                draw_sun3d(sp.x,sp.y,sr);
+                fb_drawstring(sp.x-36,sp.y+sr+18,"AIMERANCIA",YGOLD,BGDARK);
+                fb_drawstring(sp.x-28,sp.y+sr+28,space_status,GREEN,BGDARK);
+            }
+        } else {
+            planet_t*pl=&planets[idx];
+            int a=pl->angle;
+            int wx=pl->orbit*ICOS(a)/FP;
+            int wz=pl->orbit*ISIN(a)/FP;
+            int wy=pl->orbit*ISIN(a)/FP*ISIN(pl->tilt)/FP;
+            Proj pp=project3d(wx,wy,wz);
+            if(!pp.valid) continue;
+            /* Scale radius by perspective */
+            int pr=pl->size * cam_fov / (cam_fov+380+pp.depth);
+            if(pr<2) pr=2;
+            /* Drop shadow (ellipse under planet) */
+            {
+                Proj shp=project3d(wx,-40,wz);
+                if(shp.valid)
+                    for(int dy=-2;dy<=2;dy++)
+                        hl(shp.x-pr,shp.x+pr,shp.y+dy,0x00080808);
+            }
+            draw_sphere3d(pp.x,pp.y,pr,pl->cLight,pl->cMid,pl->cDark);
+            if(idx==travel_target){
+                ring(pp.x,pp.y,pr+3,2,YGOLD);
+                ring(pp.x,pp.y,pr+7,1,GOLD);
+            }
+            /* Label */
+            int lx=pp.x-dlen(pl->label)*4;
+            int ly=pp.y+pr+8;
+            if(ly<(int)H-10)
+                fb_drawstring(lx,ly,pl->label,
+                              idx==travel_target?YGOLD:LGOLD,BGDARK);
+        }
+    }
 
     /* HUD corners */
-    unsigned int hc=LGOLD;
-    int s=12;
-    hl(0,s,0,hc); for(int i=0;i<=s;i++)px(0,i,hc);
-    hl(W-1-s,W-1,0,hc); for(int i=0;i<=s;i++)px(W-1,i,hc);
-    hl(0,s,H-1,hc); for(int i=H-1-s;i<=H-1;i++)px(0,i,hc);
-    hl(W-1-s,W-1,H-1,hc); for(int i=H-1-s;i<=H-1;i++)px(W-1,i,hc);
+    unsigned int hc=LGOLD; int s=12;
+    hl(0,s,0,hc); for(int i=0;i<=s;i++)px2(0,i,hc);
+    hl(W-1-s,W-1,0,hc); for(int i=0;i<=s;i++)px2(W-1,i,hc);
+    hl(0,s,H-1,hc); for(int i=H-1-s;i<=(int)H-1;i++)px2(0,i,hc);
+    hl(W-1-s,W-1,H-1,hc); for(int i=H-1-s;i<=(int)H-1;i++)px2(W-1,i,hc);
 
     /* Top bar */
-    fb_rectfill(0,0,W,14,0x00080808);
-    hl(0,W-1,14,GOLD);
-    fb_drawstring(8,3,"AIOS SOLAR SYSTEM",LGOLD,0x00080808);
-    /* Clock */
+    fb_rectfill(0,0,W,14,0x00080808); hl(0,W-1,14,GOLD);
+    fb_drawstring(8,3,"AIOS SOLAR SYSTEM  [3D]",LGOLD,0x00080808);
     extern unsigned int timer_ticks_bss;
-    int t=(int)timer_ticks_bss/100;
-    char tb[10];
+    int t=(int)timer_ticks_bss/100; char tb[10];
     tb[0]='0'+(t/3600)%24/10; tb[1]='0'+(t/3600)%24%10; tb[2]=':';
     tb[3]='0'+(t/60)%60/10;   tb[4]='0'+(t/60)%60%10;   tb[5]=':';
     tb[6]='0'+t%60/10;        tb[7]='0'+t%60%10;         tb[8]=0;
     fb_drawstring(W-80,3,tb,LGOLD,0x00080808);
-
-    /* Planet guide bottom */
-    fb_rectfill(0,H-14,W,14,0x00080808);
-    hl(0,W-1,H-14,GOLD);
+    /* Bottom */
+    fb_rectfill(0,H-14,W,14,0x00080808); hl(0,W-1,H-14,GOLD);
     fb_drawstring(8,H-11,"Say: go to [docs|learn|net|eng|auto|code|sched]",
-                  DGRAY,0x00080808);
+                  0x00333333,0x00080808);
 }
 
 /* ── Travel animation ── */
 static void draw_travel(void){
-    int pid=travel_target;
-    if(pid<0||pid>=7) return;
-    planet_t*p=&planets[pid];
-    int prog=travel_progress; /* 0-100 */
+    int pid=travel_target; if(pid<0||pid>=7)return;
+    planet_t*pl=&planets[pid];
+    int prog=travel_progress;
 
-    /* Interpolate from sun to planet */
-    int pa=p->angle;
-    int tx=CX+p->orbit_r*icos(pa)/1000;
-    int ty=CY+p->orbit_r*isin(pa)/2000;
+    fb_rectfill(0,0,W,H,BGDARK);
+    draw_stars(prog);
 
-    /* Camera moves toward planet */
-    int vx=CX+(tx-CX)*prog/100;
-    int vy=CY+(ty-CY)*prog/100;
-
-    fb_rectfill(0,0,W,H,BLACK);
-
-    /* Stars with motion blur */
-    for(int i=0;i<NSTARS;i++){
-        /* Stretch stars during travel */
-        int sx=star_x[i], sy=star_y[i];
-        if(prog>20){
-            int dx=(sx-W/2)*prog/200;
-            int dy=(sy-H/2)*prog/400;
-            px(sx+dx,sy+dy,DIMSTAR);
-            px(sx+dx/2,sy+dy/2,STARFLD);
-        } else {
-            px(sx,sy,DIMSTAR);
-        }
-    }
-
-    /* Planet grows as we approach */
-    int grow_size=p->size + p->size*prog/25;
-    fc(W/2,H/2,grow_size+10,0x00111111);
-    fc(W/2,H/2,grow_size,p->col1);
-    fc(W/2-grow_size/4,H/2-grow_size/4,grow_size*3/4,p->col2);
-    fc(W/2-grow_size/3,H/2-grow_size/3,grow_size/2,p->col3);
-
-    /* Sun shrinks behind us */
-    int shrink=32-32*prog/120; if(shrink<6)shrink=6;
-    fc(CX-vx+CX/2,CY-vy+CY/2,shrink+8,SUN_ATM);
-    draw_sun(CX-vx+CX/2, CY-vy+CY/2, shrink, 0);
-
-    /* Progress */
-    int barw=W/3;
-    fb_rectfill(W/2-barw/2,H-30,barw,8,DGRAY);
-    fb_rectfill(W/2-barw/2,H-30,barw*prog/100,8,YGOLD);
-    fb_drawstring(W/2-30,H-42,"TRAVELING...",LGOLD,BLACK);
+    /* Planet grows toward camera */
+    int gr=pl->size*2 + pl->size*prog/8;
+    draw_sphere3d(W/2,H/2,gr,pl->cLight,pl->cMid,pl->cDark);
 
     /* Planet name */
-    fb_drawstring(W/2-dlen(p->name)*4,H/2+grow_size+10,
-                  p->name,YGOLD,BLACK);
+    fb_drawstring(W/2-dlen(pl->name)*4, H/2+gr+12, pl->name, YGOLD, BGDARK);
 
-    (void)vx;(void)vy;
+    /* Shrinking sun top-left */
+    int shrink=28-20*prog/100; if(shrink<6)shrink=6;
+    draw_sun3d(44, 54, shrink);
+    fb_drawstring(4, 54+shrink+14, "AIMERANCIA", LGOLD, BGDARK);
+
+    /* Progress bar */
+    int barw=W/3;
+    fb_rectfill(W/2-barw/2,H-32,barw,8,0x00111111);
+    fb_rectfill(W/2-barw/2,H-32,barw*prog/100,8,YGOLD);
+    fb_drawstring(W/2-30,H-44,"TRAVELING...",LGOLD,BGDARK);
 }
 
-/* ── Public API ── */
+/* ── Planet surface ── */
+static void draw_surface(void){
+    int pid=current_planet; if(pid<0||pid>=7)return;
+    planet_t*pl=&planets[pid];
+
+    fb_rectfill(0,0,W,H,BGDARK);
+    /* Horizon: gradient bands */
+    for(int i=0;i<24;i++){
+        int yy=H-50+i;
+        unsigned int hcol=blend(pl->cDark,pl->cMid,i*10);
+        hl(0,W-1,yy,hcol);
+    }
+    /* Surface grid */
+    for(int i=0;i<6;i++){
+        unsigned int gc=blend(pl->cMid,BGDARK,200);
+        hl(0,W-1,H-80+i*10,gc);
+    }
+    /* Large planet sphere center-top */
+    draw_sphere3d(W/2,H*24/100,100,pl->cLight,pl->cMid,pl->cDark);
+
+    /* Stars */
+    draw_stars(0);
+
+    /* Mini sun corner */
+    draw_sun3d(40,52,14);
+    fb_drawstring(4,52+22,"AIMERANCIA",LGOLD,BGDARK);
+    fb_drawstring(4,52+32,space_status,GREEN,BGDARK);
+
+    /* Planet title */
+    fb_drawstring(W/2-dlen(pl->name)*5, H/2+10, pl->name, YGOLD, BGDARK);
+    hl(W/2-60,W/2+60,H/2+22,GOLD);
+    fb_drawstring(W/2-50,H/2+32,"[ MODULE LOADED ]",0x00333333,BGDARK);
+}
+
+/* ══════════════════════════════════════════════════════
+   PUBLIC API
+   ══════════════════════════════════════════════════════ */
 
 void space_ui_init(void){
     W=fb_width; H=fb_height;
-    CX=W/2; CY=H*45/100; /* slightly above center for perspective */
+    init_trig();
     init_stars();
     sun_pulse=0; sun_pdir=1; tick=0;
+    cam_angX=22; cam_angY=0;
     travel_target=PLANET_NONE;
     travel_progress=0;
     current_planet=PLANET_NONE;
-    returning=0;
     space_mode=1;
 }
 
 void space_ui_draw(void){
-    if(!space_mode)return;
-    if(travel_target!=PLANET_NONE && travel_progress<100){
-        draw_travel();
-    } else if(current_planet!=PLANET_NONE){
-        draw_planet_surface(current_planet);
-    } else {
-        draw_solar_system();
-    }
+    if(!space_mode) return;
+    if(travel_target!=PLANET_NONE && travel_progress<100) draw_travel();
+    else if(current_planet!=PLANET_NONE) draw_surface();
+    else draw_solar_system();
 }
 
 void space_ui_tick(void){
-    if(!space_mode)return;
+    if(!space_mode) return;
     tick++;
 
     /* Sun pulse */
     sun_pulse+=sun_pdir;
-    if(sun_pulse>=10)sun_pdir=-1;
-    if(sun_pulse<=0) sun_pdir=1;
+    if(sun_pulse>=12) sun_pdir=-1;
+    if(sun_pulse<=0)  sun_pdir=1;
+
+    /* Auto-rotate camera */
+    cam_angY=(cam_angY+1)%360;
 
     /* Orbit planets */
-    for(int i=0;i<7;i++){
-        if(tick%2==0){
-            planets[i].angle=(planets[i].angle+planets[i].speed/5)%360;
-        }
-    }
+    for(int i=0;i<7;i++)
+        if(tick%2==0)
+            planets[i].angle=(planets[i].angle+planets[i].speed)%360;
 
-    /* Travel animation */
+    /* Travel */
     if(travel_target!=PLANET_NONE && travel_progress<100){
-        travel_progress+=3;
+        travel_progress+=2;
         if(travel_progress>=100){
             travel_progress=100;
             current_planet=travel_target;
-            /* If going to documents, hand off to doc_page */
-            if(current_planet==PLANET_DOCUMENTS){
-                doc_page_open_browser();
-            }
+            travel_target=PLANET_NONE;
+            if(current_planet==PLANET_DOCUMENTS) doc_page_open_browser();
         }
     }
 
-    /* Redraw every tick */
-    if(current_planet==PLANET_NONE||travel_progress<100){
-        if(tick%3==0) space_ui_draw();
-    }
+    if(tick%2==0) space_ui_draw();
 }
 
 void space_ui_travel_to(int pid){
-    if(pid<0||pid>=7)return;
-    travel_target=pid;
-    travel_progress=0;
-    current_planet=PLANET_NONE;
+    if(pid<0||pid>=7) return;
+    travel_target=pid; travel_progress=0; current_planet=PLANET_NONE;
 }
-
 void space_ui_return(void){
-    current_planet=PLANET_NONE;
-    travel_target=PLANET_NONE;
-    travel_progress=0;
-    returning=0;
+    current_planet=PLANET_NONE; travel_target=PLANET_NONE; travel_progress=0;
     space_ui_draw();
 }
+void space_ui_set_speaking(int on){ sun_speaking=on; }
+int  space_ui_active(void){ return space_mode; }
 
-void space_ui_set_speaking(int on){
-    sun_speaking=on;
-}
-
-int space_ui_active(void){
-    return space_mode;
-}
-
-static int smatch(const char*s,const char*p){
-    while(*p){if(*s!=*p)return 0;s++;p++;}return 1;
-}
-static int shas(const char*s,const char*p){
-    while(*s){if(smatch(s,p))return 1;s++;}return 0;
-}
+static int smatch(const char*s,const char*p){while(*p){if(*s!=*p)return 0;s++;p++;}return 1;}
+static int shas(const char*s,const char*p){while(*s){if(smatch(s,p))return 1;s++;}return 0;}
 
 int space_ui_handle(const char*input){
-    if(!space_mode)return 0;
-
-    /* Return to solar system */
+    if(!space_mode) return 0;
     if(smatch(input,"return")||smatch(input,"go back")||
        smatch(input,"solar system")||smatch(input,"back to space")||
-       smatch(input,"retour")){
-        space_ui_return();
-        return 1;
-    }
-
-    /* Travel commands */
-    if(shas(input,"document")||shas(input,"doc planet")||
-       shas(input,"go to doc")||shas(input,"documents planet")){
-        space_ui_travel_to(PLANET_DOCUMENTS); return 1;
-    }
-    if(shas(input,"learn")||shas(input,"knowledge planet")){
-        space_ui_travel_to(PLANET_LEARNING); return 1;
-    }
-    if(shas(input,"network")||shas(input,"net planet")||shas(input,"reseau")){
-        space_ui_travel_to(PLANET_NETWORK); return 1;
-    }
-    if(shas(input,"engineer")||shas(input,"eng planet")){
-        space_ui_travel_to(PLANET_ENGINEERING); return 1;
-    }
-    if(shas(input,"auto")||shas(input,"autonomy")||shas(input,"guardian")){
-        space_ui_travel_to(PLANET_AUTONOMY); return 1;
-    }
-    if(shas(input,"code")||shas(input,"compiler")||shas(input,"codegen")){
-        space_ui_travel_to(PLANET_CODE); return 1;
-    }
-    if(shas(input,"sched")||shas(input,"scheduler")||shas(input,"tasks")){
-        space_ui_travel_to(PLANET_SCHEDULER); return 1;
-    }
-
+       smatch(input,"retour")){space_ui_return();return 1;}
+    if(shas(input,"document")||shas(input,"go to doc"))
+        {space_ui_travel_to(PLANET_DOCUMENTS);return 1;}
+    if(shas(input,"learn")||shas(input,"knowledge"))
+        {space_ui_travel_to(PLANET_LEARNING);return 1;}
+    if(shas(input,"network")||shas(input,"reseau"))
+        {space_ui_travel_to(PLANET_NETWORK);return 1;}
+    if(shas(input,"engineer"))
+        {space_ui_travel_to(PLANET_ENGINEERING);return 1;}
+    if(shas(input,"auto")||shas(input,"autonomy")||shas(input,"guardian"))
+        {space_ui_travel_to(PLANET_AUTONOMY);return 1;}
+    if(shas(input,"code")||shas(input,"compiler"))
+        {space_ui_travel_to(PLANET_CODE);return 1;}
+    if(shas(input,"sched")||shas(input,"scheduler"))
+        {space_ui_travel_to(PLANET_SCHEDULER);return 1;}
     return 0;
 }
