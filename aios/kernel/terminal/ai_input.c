@@ -7,6 +7,7 @@
 #include "../compiler/compiler.h"
 #include "../ai/ai_exec.h"
 #include "../ai/documents/doc_page.h"
+#include "../graphics/space_ui.h"
 
 // ── string helpers ────────────────────────────────────────────────────
 static int str_eq(const char* a, const char* b) {

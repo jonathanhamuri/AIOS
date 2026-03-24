@@ -31,7 +31,7 @@ OBJS = kernel/entry_mb.o \
        kernel/apps/apps.o \
        kernel/ai/autonomy/autonomy.o \
        kernel/graphics/framebuffer.o \
-       kernel/graphics/aios_ui.o \
+       kernel/graphics/aios_ui.o kernel/graphics/space_ui.o \
 
 all: aios.iso
 

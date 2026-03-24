@@ -2,6 +2,7 @@
 #include "apps/apps.h"
 #include "net/discovery/discovery.h"
 #include "graphics/aios_ui.h"
+#include "graphics/space_ui.h"
 #include "ai/learning/learning.h"
 #include "graphics/framebuffer.h"
 #include "net/net.h"

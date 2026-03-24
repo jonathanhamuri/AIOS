@@ -290,6 +290,18 @@ def respond(raw,lang):
     if any(w in t for w in ["export to pdf","save as pdf","export pdf","convert to pdf","save pdf"]):
         resp = export_document(last_doc_title or "Document", last_doc_body or "Empty document", "pdf")
         return resp
+    if any(w in t for w in ["go to documents","documents planet","travel to documents","go to doc"]):
+        if lang=="fr": return "Voyage vers la planete Documents. Entrez dans la bibliotheque."
+        return "Travelling to the Documents planet. Entering the document library now."
+    if any(w in t for w in ["go to learning","learning planet","knowledge planet"]):
+        if lang=="fr": return "Voyage vers la planete Apprentissage."
+        return "Travelling to the Learning planet."
+    if any(w in t for w in ["go to engineering","engineering planet","eng planet"]):
+        if lang=="fr": return "Voyage vers la planete Ingenierie."
+        return "Travelling to the Engineering planet."
+    if any(w in t for w in ["return","go back","solar system","back to space"]):
+        if lang=="fr": return "Retour au systeme solaire AIMERANCIA."
+        return "Returning to the AIMERANCIA solar system."
     if any(w in t for w in ["goodbye","bye","au revoir","adieu","bonne nuit","a bientot"]):
         if lang=="fr": return "Au revoir. AIMERANCIA reste en ligne, surveille tout et continue d apprendre."
         return "Goodbye. AIMERANCIA stays online, monitors everything, and keeps learning."
