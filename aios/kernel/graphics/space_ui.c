@@ -6,6 +6,7 @@
 #include "../mm/pmm.h"
 
 int space_mode = 0;
+extern int aios_ui_active;
 
 /* ══════════════════════════════════════════════════════
    FIXED-POINT 3D ENGINE
@@ -436,6 +437,7 @@ void space_ui_init(void){
     travel_progress=0;
     current_planet=PLANET_NONE;
     space_mode=1;
+    aios_ui_active=0; /* space_ui owns the screen */
 }
 
 void space_ui_draw(void){
