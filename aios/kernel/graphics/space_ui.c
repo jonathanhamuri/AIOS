@@ -91,6 +91,7 @@ static int travel_target = PLANET_NONE;
 static int travel_progress = 0; /* 0-100 */
 static int current_planet = PLANET_NONE;
 static int returning = 0;
+static char space_status[32] = "LISTENING...";
 
 /* Stars */
 #define NSTARS 120
@@ -187,7 +188,6 @@ static void draw_sun(int x,int y,int size,int speaking){
 
 /* ── Draw planet ── */
 static int dlen(const char*s){int n=0;while(*s++)n++;return n;}
-static int dlen(const char*s){int n=0;while(*s++)n++;return n;}
 static void draw_planet(int px2,int py2,planet_t*p,int highlighted){
     /* Shadow side */
     fc(px2+p->size/4, py2+p->size/4, p->size, 0x00111111);
@@ -220,7 +220,6 @@ static void draw_mini_sun(void){
     /* AIMERANCIA label */
     fb_drawstring(4,sz*2+16,"AIMERANCIA",LGOLD,BLACK);
     /* Status */
-static char space_status[32] = "LISTENING...";
     fb_drawstring(4,sz*2+26,space_status,GREEN,BLACK);
 }
 
@@ -368,7 +367,6 @@ static void draw_travel(void){
 }
 
 /* ── Public API ── */
-static char space_status[32] = "LISTENING...";
 
 void space_ui_init(void){
     W=fb_width; H=fb_height;
