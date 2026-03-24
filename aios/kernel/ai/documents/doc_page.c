@@ -31,9 +31,9 @@ int current_page = PAGE_MAIN;
 #define ICON_C    0x00888866
 
 /* ── Document store ── */
-static doc_entry_t doc_store[DOC_STORE_MAX];
-static int doc_count   = 0;
-static int active_doc  = -1;
+doc_entry_t doc_store[DOC_STORE_MAX];
+int doc_count   = 0;
+int active_doc  = -1;
 static int view_scroll = 0;
 static int page_tick   = 0;
 
@@ -378,7 +378,7 @@ static void draw_status_bar(int wc,const char*mode){
 }
 
 /* ── Full render ── */
-static void render_doc(void){
+void render_doc(void){
     layout();
     fb_clear(BG);
     draw_left_panel();

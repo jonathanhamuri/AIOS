@@ -147,11 +147,7 @@ static topic_db_t generic = {
 
 void doc_page_write_long(const char* title, const char* type,
                           const char* topic, int pages){
-    extern int current_page;
-    extern doc_entry_t doc_store[];
-    extern int doc_count, active_doc;
-    extern void render_doc(void);
-    extern void doc_page_save(void);
+
 
     if(active_doc<0||active_doc>=DOC_STORE_MAX) return;
     doc_entry_t* d = &doc_store[active_doc];
