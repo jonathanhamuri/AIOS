@@ -207,7 +207,6 @@ static void draw_planet(int px2,int py2,planet_t*p,int highlighted){
         fb_drawstring(lx,ly,p->label,highlighted?YGOLD:LGOLD,BLACK);
 }
 
-static int dlen(const char*s){int n=0;while(*s++)n++;return n;}
 
 /* ── Draw mini-sun (corner when on planet) ── */
 static void draw_mini_sun(void){
@@ -219,7 +218,7 @@ static void draw_mini_sun(void){
     /* AIMERANCIA label */
     fb_drawstring(4,sz*2+16,"AIMERANCIA",LGOLD,BLACK);
     /* Status */
-    extern char status_str[];
+    extern char status_str[32];
     fb_drawstring(4,sz*2+26,status_str,GREEN,BLACK);
 }
 
