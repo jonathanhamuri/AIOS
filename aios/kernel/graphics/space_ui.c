@@ -186,6 +186,7 @@ static void draw_sun(int x,int y,int size,int speaking){
 }
 
 /* ── Draw planet ── */
+static int dlen(const char*s){int n=0;while(*s++)n++;return n;}
 static void draw_planet(int px2,int py2,planet_t*p,int highlighted){
     /* Shadow side */
     fc(px2+p->size/4, py2+p->size/4, p->size, 0x00111111);
@@ -218,8 +219,8 @@ static void draw_mini_sun(void){
     /* AIMERANCIA label */
     fb_drawstring(4,sz*2+16,"AIMERANCIA",LGOLD,BLACK);
     /* Status */
-    extern char status_str[32];
-    fb_drawstring(4,sz*2+26,status_str,GREEN,BLACK);
+    extern char "LISTENING..."[32];
+    fb_drawstring(4,sz*2+26,"LISTENING...",GREEN,BLACK);
 }
 
 /* ── Planet surface (when traveling there) ── */
@@ -278,7 +279,7 @@ static void draw_solar_system(void){
 
     /* AIMERANCIA label under sun */
     fb_drawstring(CX-36,CY+52,"AIMERANCIA",YGOLD,BLACK);
-    fb_drawstring(CX-28,CY+63,status_str,GREEN,BLACK);
+    fb_drawstring(CX-28,CY+63,"LISTENING...",GREEN,BLACK);
 
     /* HUD corners */
     unsigned int hc=LGOLD;
@@ -366,7 +367,7 @@ static void draw_travel(void){
 }
 
 /* ── Public API ── */
-extern char status_str[32];
+extern char "LISTENING..."[32];
 
 void space_ui_init(void){
     W=fb_width; H=fb_height;
