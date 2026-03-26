@@ -269,3 +269,29 @@
 [00:21:04] YOU (en): sleep now
 [00:21:06] AIMERANCIA: Saving knowledge base and shutting down. Goodbye.
 [00:21:15] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.
+[00:25:06] AIMERANCIA: AIMERANCIA online. I am your operating system. The screen you see is AIOS. Speak to me.
+[00:25:19] YOU (en): play dough
+[00:25:19] AIMERANCIA: Unknown command: play doughSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[00:25:36] YOU (en): go to document
+[00:25:37] AIMERANCIA: Unknown command: go to documentSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[00:26:07] YOU (en): go to document
+[00:26:08] AIMERANCIA: Unknown command: go to documentSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[00:26:37] YOU (en): go to dogs
+[00:26:38] AIMERANCIA: Unknown command: go to dogsSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[00:26:56] YOU (en): go to code
+[00:26:57] AIMERANCIA: Unknown command: go to codeSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[00:27:10] YOU (en): go to document
+[00:27:11] AIMERANCIA: Unknown command: go to documentSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[00:27:24] YOU (en): what can you do
+[00:27:25] AIMERANCIA: AUTONOMY: aios status, aios report aios optimize, aios auto on create module <description>
+[00:27:38] YOU (en): and document
+[00:27:39] AIMERANCIA: Unknown command: and documentSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[00:27:50] YOU (en): document
+[00:27:51] AIMERANCIA: Unknown command: documentSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[00:28:10] YOU (en): sleep now
+[00:28:10] AIMERANCIA: [AIMERANCIASaving knowledge base... [ATAstatus=0x[KBFSHeader written OK [AIOSSaved:  facts to disk [AIMERANCIASystem going offline. Goodbye.
+[00:28:27] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.
+[18:19:10] AIMERANCIA: AIMERANCIA online. I am your operating system. The screen you see is AIOS. Speak to me.
+[18:19:43] YOU (en): sleep now
+[18:19:44] AIMERANCIA: [AIMERANCIASaving knowledge base... [ATAstatus=0x[KBFSHeader written OK [AIOSSaved:  facts to disk [AIMERANCIASystem going offline. Goodbye.
+[18:27:58] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.
