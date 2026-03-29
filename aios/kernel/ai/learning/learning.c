@@ -264,3 +264,47 @@ void learning_load(){
             MAKE_COLOR(COLOR_BCYAN,COLOR_BLACK));
     }
 }
+
+void learning_serialize(unsigned char* buf, int maxlen){
+    int pos=0;
+    for(int i=0;i<learning_count&&i<MAX_SKILLS;i++){
+        /* name */
+        const char* n=skill_table[i].name;
+        while(*n&&pos<maxlen-4) buf[pos++]=(unsigned char)*n++;
+        buf[pos++]=0;
+        /* code */
+        const char* co=skill_table[i].code;
+        while(*co&&pos<maxlen-4) buf[pos++]=(unsigned char)*co++;
+        buf[pos++]=0;
+    }
+    if(pos<maxlen) buf[pos++]=0;
+    if(pos<maxlen) buf[pos++]=0;
+}
+
+void learning_deserialize(const unsigned char* buf, int len){
+    int pos=0;
+    learning_count=0;
+    while(pos<len-2&&learning_count<MAX_SKILLS){
+        if(!buf[pos]&&!buf[pos+1]) break;
+        char nm[SKILL_NAME_LEN]={0};
+        int ni=0;
+        while(buf[pos]&&pos<len&&ni<SKILL_NAME_LEN-1)
+            nm[ni++]=(char)buf[pos++];
+        pos++;
+        char co[SKILL_CODE_LEN]={0};
+        int ci=0;
+        while(buf[pos]&&pos<len&&ci<SKILL_CODE_LEN-1)
+            co[ci++]=(char)buf[pos++];
+        pos++;
+        if(nm[0]){
+            int i=learning_count++;
+            int j=0;
+            while(nm[j]&&j<SKILL_NAME_LEN-1){skill_table[i].name[j]=nm[j];j++;}
+            skill_table[i].name[j]=0;
+            j=0;
+            while(co[j]&&j<SKILL_CODE_LEN-1){skill_table[i].code[j]=co[j];j++;}
+            skill_table[i].code[j]=0;
+            skill_table[i].hits=0;
+        }
+    }
+}

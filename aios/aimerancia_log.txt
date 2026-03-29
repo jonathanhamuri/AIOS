@@ -295,3 +295,7 @@
 [18:19:43] YOU (en): sleep now
 [18:19:44] AIMERANCIA: [AIMERANCIASaving knowledge base... [ATAstatus=0x[KBFSHeader written OK [AIOSSaved:  facts to disk [AIMERANCIASystem going offline. Goodbye.
 [18:27:58] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.
+[18:28:31] AIMERANCIA: AIMERANCIA online. I am your operating system. The screen you see is AIOS. Speak to me.
+[18:29:08] YOU (en): sleep now
+[18:29:09] AIMERANCIA: [AIMERANCIASaving knowledge base... [ATAstatus=0x[KBFSHeader written OK [AIOSSaved:  facts to disk [AIMERANCIASystem going offline. Goodbye.
+[18:29:25] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.

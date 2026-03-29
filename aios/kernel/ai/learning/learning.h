@@ -21,4 +21,6 @@ void learning_load();
 extern int learning_count;
 extern skill_t skill_table[MAX_SKILLS];
 
+void learning_serialize(unsigned char* buf, int maxlen);
+void learning_deserialize(const unsigned char* buf, int len);
 #endif
