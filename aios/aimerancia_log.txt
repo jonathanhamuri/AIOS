@@ -299,3 +299,17 @@
 [18:29:08] YOU (en): sleep now
 [18:29:09] AIMERANCIA: [AIMERANCIASaving knowledge base... [ATAstatus=0x[KBFSHeader written OK [AIOSSaved:  facts to disk [AIMERANCIASystem going offline. Goodbye.
 [18:29:25] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.
+[13:19:31] AIMERANCIA: AIMERANCIA online. I am your operating system. The screen you see is AIOS. Speak to me.
+[13:19:49] YOU (en): go to dog
+[13:19:50] AIMERANCIA: Unknown command: go to dogSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[13:20:07] YOU (en): create file
+[13:20:08] AIMERANCIA: Unknown command: create fileSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[13:20:24] YOU (en): what are you
+[13:20:25] AIMERANCIA: name: AIMERANCIAversion: 0.5.0-phase5arch: x86 32-bit protected modelanguage: Assembly + C + AIOS nativememory_mgr: bitmap PMM + free-list heap
+[13:20:46] YOU (en): what can you do
+[13:20:47] AIMERANCIA: AUTONOMY: aios status, aios report aios optimize, aios auto on create module <description>
+[13:21:07] YOU (en): can you write your own call
+[13:21:08] AIMERANCIA: Unknown command: can you write your own callSay 'help' for all commands Say 'about' for system info Say 'teach aios X means Y' to add skills
+[13:21:21] YOU (en): sleep now
+[13:21:22] AIMERANCIA: [AIMERANCIASaving knowledge base... [ATAstatus=0x[KBFSFAIL status=0x[AIMERANCIASystem going offline. Goodbye.
+[13:21:35] AIMERANCIA: AIMERANCIA voice going offline. Kernel continues running.
